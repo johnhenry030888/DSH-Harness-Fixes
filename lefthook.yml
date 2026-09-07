@@ -1,3 +1,4 @@
+---
 # House default lefthook config.
 # Installed by init.sh; activate with: lefthook install
 pre-commit:
