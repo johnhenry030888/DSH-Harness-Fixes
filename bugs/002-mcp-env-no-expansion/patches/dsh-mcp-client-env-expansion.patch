@@ -1,0 +1,34 @@
+--- /tmp/pristine/dsh-mcp-client/lib/index.js
++++ /home/john/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-mcp-client/lib/index.js
+@@ -19,15 +19,29 @@
+ * @module
+ */
+ /**
++* Expand `${NAME}` / `$NAME` references in one explicit env value against
++* the harness process environment. Config layers document credentials this
++* way (opencode parity); without expansion the literal placeholder reaches
++* the child and every credential-bearing server fails auth. Unset names
++* resolve to the empty string, matching shell semantics.
++*/
++function expandEnvValue(value) {
++	if (typeof value !== "string") return value;
++	return value.replace(/\$\{(\w+)\}|\$(\w+)/g, (_, braced, plain) => process.env[braced ?? plain] ?? "");
++}
++/**
+ * The subprocess seam's scrubbed parent env (credential-shaped and stale
+-* `DSH_*` names dropped), plus the spec's explicit env. The MCP SDK owns the
++* `DSH_*` names dropped), plus the spec's explicit env with `${}`
++* references expanded (see expandEnvValue). The MCP SDK owns the
+ * actual spawn, so this transport shares the scrub definition rather than the
+ * spawn path.
+ */
+ function buildChildEnv(extra) {
++	const resolved = {};
++	for (const [key, value] of Object.entries(extra ?? {})) resolved[key] = expandEnvValue(value);
+ 	return {
+ 		...scrubbedParentEnv(),
+-		...extra
++		...resolved
+ 	};
+ }
+ /**

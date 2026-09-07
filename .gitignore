@@ -1,0 +1,58 @@
+# House standard .gitignore — trim per project.
+# --- OS / IDE ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- Node ---
+node_modules/
+dist/
+build/
+.next/
+coverage/
+*.log
+npm-debug.log*
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+*.egg-info/
+
+# --- Rust ---
+target/
+Cargo.lock
+
+# --- Go ---
+bin/
+*.exe
+
+# --- Flutter / Dart ---
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+
+# --- C++ ---
+*.o
+*.so
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+
+# --- Docker ---
+.docker/
+
+# --- Env / secrets ---
+.env
+.env.*
+!.env.example

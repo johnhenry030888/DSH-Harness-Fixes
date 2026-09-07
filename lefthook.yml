@@ -1,0 +1,34 @@
+# House default lefthook config.
+# Installed by init.sh; activate with: lefthook install
+pre-commit:
+  parallel: true
+  commands:
+    ruff:
+      glob: "*.py"
+      run: ruff check {staged_files} && ruff format --check {staged_files}
+    biome:
+      glob: "*.{js,jsx,ts,tsx,json,jsonc,css}"
+      run: biome check --no-errors-on-unmatched {staged_files}
+    shfmt:
+      glob: "*.{sh,bash}"
+      run: shfmt -d {staged_files}
+    shellcheck:
+      glob: "*.{sh,bash}"
+      run: shellcheck {staged_files}
+    yamllint:
+      glob: "*.{yml,yaml}"
+      run: yamllint {staged_files}
+    typos:
+      run: typos {staged_files}
+
+pre-push:
+  parallel: false
+  commands:
+    pytest:
+      run: sh -c '[ -d tests -o -f pyproject.toml ] || exit 0; pytest -q'
+    cargo-test:
+      run: sh -c '[ -f Cargo.toml ] || exit 0; cargo test --quiet'
+    go-test:
+      run: sh -c '[ -f go.mod ] || exit 0; go test ./...'
+    node-test:
+      run: sh -c '[ -f package.json ] || exit 0; npm test --if-present --silent'

@@ -1,0 +1,155 @@
+--- /tmp/pristine/driver/package/lib/index.js	1985-10-26 10:15:00.000000000 +0200
++++ /home/john/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-goal-round-driver/lib/index.js	2026-09-05 23:50:26.266281873 +0200
+@@ -51,6 +51,8 @@
+ function renderThrown(value) {
+ 	return value instanceof Error ? value.message : String(value);
+ }
++/** Denial for interactive human questions during autonomous goal rounds. */
++const GOAL_ROUND_ASK_DENIAL = "ask_user_question is unavailable in autonomous goal rounds (no guaranteed human present; a pending question stalls the driver with no timeout budget). Either proceed without the decision, or record the need via update_goal(blocked) with the concrete condition in blocked_reason.";
+ /** Install automatic same-session continuation and its race fences. */
+ function apply(ctx) {
+ 	const states = /* @__PURE__ */ new Map();
+@@ -65,7 +67,8 @@
+ 			needsCheckpoint: false,
+ 			requested: false,
+ 			run: void 0,
+-			stopping: false
++			stopping: false,
++			askGuardDispose: void 0
+ 		};
+ 		states.set(agent, state);
+ 		return state;
+@@ -91,6 +94,27 @@
+ 			ctx.logger.warn(`goal-round-driver: could not disarm agent "${state.agent.id}": ${renderThrown(error)}`);
+ 		}
+ 	}
++	/** Dispose this agent goal-round ask guard when the autonomous turn no longer owns it. */
++	function clearAskGuard(state) {
++		const dispose = state.askGuardDispose;
++		state.askGuardDispose = void 0;
++		if (dispose === void 0) return;
++		try {
++			dispose();
++		} catch (error) {
++			ctx.logger.warn(`goal-round-driver: could not dispose ask guard for agent "${state.agent.id}": ${renderThrown(error)}`);
++		}
++	}
++	/** Deny interactive human questions while an admitted goal round owns the turn. */
++	function installAskGuard(state) {
++		if (state.askGuardDispose !== void 0) return;
++		if (ctx.agents.get(state.agent.id) !== state.agent) return;
++		try {
++			state.askGuardDispose = state.agent.ctx.tools.guard((exec) => exec.name === "ask_user_question" ? GOAL_ROUND_ASK_DENIAL : void 0);
++		} catch (error) {
++			ctx.logger.warn(`goal-round-driver: could not install ask guard for agent "${state.agent.id}": ${renderThrown(error)}`);
++		}
++	}
+ 	/** Preserve claimed step context when this driver drops only its own round. */
+ 	function restoreOtherClaimed(agent, messages, messageId) {
+ 		const retained = messages.filter((message) => message.id !== messageId && !(message.source.kind === "goal" && message.source.round === 0));
+@@ -205,11 +229,14 @@
+ 			stateFor(agent);
+ 		});
+ 		ctx.on("agent/disposed", ({ agent }) => {
++			const state = states.get(agent);
++			if (state !== void 0) clearAskGuard(state);
+ 			states.delete(agent);
+ 		});
+ 		ctx.on("agent/session-start", ({ agent }) => {
+ 			const state = stateFor(agent);
+ 			state.attempt = void 0;
++			clearAskGuard(state);
+ 			state.competingQueued = false;
+ 			state.needsCheckpoint = false;
+ 		});
+@@ -221,6 +248,7 @@
+ 				const goal = currentGoal(state);
+ 				if ((attempt?.phase === "queued" || attempt?.phase === "claimed" || attempt?.cancelled) && goal?.phase === "active" && goal.activation === "armed") {
+ 					state.attempt = void 0;
++					clearAskGuard(state);
+ 					try {
+ 						ctx.goals.pause(agent, goalRef(goal));
+ 					} catch (error) {
+@@ -243,14 +271,23 @@
+ 			if (attempt !== void 0 && sameQueued(message.content, message.source, attempt)) return;
+ 			state.competingQueued = true;
+ 			if (attempt?.phase === "queued") attempt.stale = true;
++			clearAskGuard(state);
+ 		});
+ 		ctx.on("agent/inbox/claimed", ({ agent, message }) => {
+-			const attempt = stateFor(agent).attempt;
+-			if (attempt !== void 0 && sameQueued(message.content, message.source, attempt)) attempt.phase = "claimed";
++			const state = stateFor(agent);
++			const attempt = state.attempt;
++			if (attempt !== void 0 && sameQueued(message.content, message.source, attempt)) {
++				attempt.phase = "claimed";
++				installAskGuard(state);
++			}
+ 		});
+ 		ctx.on("agent/inbox/discarded", ({ agent, message }) => {
+-			const attempt = stateFor(agent).attempt;
+-			if (attempt !== void 0 && sameQueued(message.content, message.source, attempt)) attempt.cancelled = true;
++			const state = stateFor(agent);
++			const attempt = state.attempt;
++			if (attempt !== void 0 && sameQueued(message.content, message.source, attempt)) {
++				attempt.cancelled = true;
++				clearAskGuard(state);
++			}
+ 		});
+ 		ctx.on("session/event", (session, event) => {
+ 			const agent = ctx.agents.get(session.id);
+@@ -258,9 +295,13 @@
+ 			const state = stateFor(agent);
+ 			switch (event.type) {
+ 				case "user/message":
+-					if (state.attempt !== void 0 && event.data.id === state.attempt.messageId) state.attempt.phase = "admitted";
++					if (state.attempt !== void 0 && event.data.id === state.attempt.messageId) {
++						state.attempt.phase = "admitted";
++						installAskGuard(state);
++					}
+ 					return;
+ 				case "turn/end":
++					clearAskGuard(state);
+ 					if (event.data.reason.kind === "max-tokens") {
+ 						disarm(state);
+ 						return;
+@@ -295,6 +336,7 @@
+ 				if (attempt !== void 0 && sameRound(source, attempt)) {
+ 					attempt.stale = true;
+ 					state.attempt = void 0;
++					clearAskGuard(state);
+ 				}
+ 				restoreOtherClaimed(agent, messages, submitted.id);
+ 				requestDrive(state);
+@@ -306,6 +348,7 @@
+ 			} catch (error) {
+ 				if (signal.aborted) throw error;
+ 				state.attempt = void 0;
++				clearAskGuard(state);
+ 				requestDrive(state);
+ 				throw error;
+ 			}
+@@ -315,6 +358,7 @@
+ 			}
+ 			if (decision.kind === "reject") {
+ 				state.attempt = void 0;
++				clearAskGuard(state);
+ 				const goal = currentGoal(state);
+ 				if (goal !== void 0 && goal.id === source.goalId && goal.revision === source.revision && goal.phase === "active" && goal.activation === "armed") ctx.goals.block(agent, goalRef(goal), {
+ 					code: "prompt-rejected",
+@@ -331,6 +375,7 @@
+ 			}
+ 			if (!valid) {
+ 				state.attempt = void 0;
++				clearAskGuard(state);
+ 				restoreOtherClaimed(agent, decision.messages, submitted.id);
+ 				requestDrive(state);
+ 				return { kind: "reject" };
+@@ -343,6 +388,7 @@
+ 			for (const state of states.values()) {
+ 				state.stopping = true;
+ 				disarm(state);
++				clearAskGuard(state);
+ 				const attempt = state.attempt;
+ 				if (attempt !== void 0) {
+ 					attempt.stale = true;
