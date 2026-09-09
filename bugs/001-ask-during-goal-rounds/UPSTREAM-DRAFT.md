@@ -4,7 +4,7 @@ Post to https://github.com/deepseek-ai/deepseek-harness/discussions as a new
 Discussion with a beetle-emoji `Bug:` title. Draft body below the line.
 Update the status line at the top once filed.
 
-Submission status: NOT-FILED.
+Submission status: FILED as deepseek-ai/deepseek-harness discussion #6074.
 
 ---
 

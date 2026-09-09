@@ -1,6 +1,6 @@
 # UPSTREAM DRAFT — `:bug: Bug: MCP env ${VAR} references never expanded`
 
-Status: NOT-FILED (paste to https://github.com/deepseek-ai/deepseek-harness/discussions).
+Status: FILED as deepseek-ai/deepseek-harness discussion #6075.
 
 ---
 

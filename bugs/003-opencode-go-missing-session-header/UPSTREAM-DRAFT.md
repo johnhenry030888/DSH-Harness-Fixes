@@ -1,6 +1,6 @@
 # UPSTREAM DRAFT — `:bug: Bug: opencode-go models fail with 400 MissingSessionID (x-opencode-session never sent)`
 
-Status: NOT-FILED (paste to https://github.com/deepseek-ai/deepseek-harness/discussions).
+Status: FILED as deepseek-ai/deepseek-harness discussion #6076.
 
 ---
 
