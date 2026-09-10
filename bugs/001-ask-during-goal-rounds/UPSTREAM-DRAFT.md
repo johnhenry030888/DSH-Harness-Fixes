@@ -4,7 +4,7 @@ Post to https://github.com/deepseek-ai/deepseek-harness/discussions as a new
 Discussion with a beetle-emoji `Bug:` title. Draft body below the line.
 Update the status line at the top once filed.
 
-Submission status: FILED as deepseek-ai/deepseek-harness discussion #6074.
+Submission status: FILED as deepseek-ai/deepseek-harness discussion #6074; argszero engaged (root cause confirmed, in-tree PR requested). Rebased TS port + regression test delivered on-thread (branch johnhenry030888/deepseek-harness@goal-round-ask-guard, 57/57 + oxlint clean + scoped tsc clean); direct PR creation denied by token scope — maintainer may open from the branch.
 
 ---
 
