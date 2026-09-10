@@ -8,8 +8,11 @@ Community bug reports use a beetle-emoji `Bug:` title prefix. Example: Discussio
 
 ## How to submit this batch
 
-1. Open https://github.com/deepseek-ai/deepseek-harness/discussions, New discussion.
-2. One discussion per bug (keeps review threads separate). Paste the bug folder
+1. File via the GraphQL API (proven: discussions #6074-6076) — no manual paste needed:
+   `gh api graphql -F repo=R_kgDOT3T1gw -F cat=DIC_kwDOT3T1g84DDSUb -F title="..." -F body=@body.md`
+   with `mutation($repo:ID!,$cat:ID!,$title:String!,$body:String!){createDiscussion(input:{repositoryId:$repo,categoryId:$cat,title:$title,body:$body}){discussion{number url}}}`.
+   Category is General (no Bugs category exists). Note: `-F body=@file` works; `--input` conflicts with `-f`.
+2. One discussion per bug (keeps review threads separate). Body: the bug folder
    UPSTREAM-DRAFT.md content. Title: `:bug: Bug: <short title>`.
 3. State that a tested patch against a pinned version exists and offer the diff.
    Maintainers may ask for it pasted into the thread or placed elsewhere.
