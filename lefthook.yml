@@ -21,6 +21,13 @@ pre-commit:
       run: yamllint {staged_files}
     typos:
       run: typos {staged_files}
+    typecheck:
+      glob: "*.{ts,tsx}"
+      run: >
+        sh -c '[ -f tsconfig.json ] || exit 0;
+        if ! command -v tsc >/dev/null 2>&1; then
+        echo "skip: tsc not installed"; exit 0; fi;
+        npm run --if-present --silent typecheck'
 
 pre-push:
   parallel: false
@@ -33,3 +40,5 @@ pre-push:
       run: sh -c '[ -f go.mod ] || exit 0; go test ./...'
     node-test:
       run: sh -c '[ -f package.json ] || exit 0; npm test --if-present --silent'
+    secrets:
+      run: sh scripts/audit-secrets.sh --staged

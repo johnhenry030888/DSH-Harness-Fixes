@@ -1,0 +1,5 @@
+# House yamllint config — calm defaults for agent-maintained repos.
+extends: default
+rules:
+  # House style omits the document-start marker.
+  document-start: disable

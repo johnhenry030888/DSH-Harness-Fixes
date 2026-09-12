@@ -1,0 +1,14 @@
+{
+  "name": "DSH-Harness-Fixes",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test tests/smoke.test.mjs \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module"
+}

@@ -1,0 +1,39 @@
+{
+  "project": "DSH-Harness-Fixes",
+  "stack": "polyglot",
+  "features": [],
+  "description": "Batch project for DeepSeek Harness bug fixes",
+  "version": "1.10.0",
+  "date": "2026-09-12",
+  "audited": "2026-09-12",
+  "files": {
+    ".editorconfig": "93f930437e215ca9ff99dd4d563370a44b94c4726b17f18623d172336d88d8cf",
+    ".gitignore": "6f2c7117cb0e2bc70de06c37436b2e9b86a18a9f53765f5045f6d8e5d9b1e42d",
+    ".env.example": "0e006f7bcbb86c21b6e33d43e85bda2153ac017d6b0c35991731cd8f4583aec0",
+    "scripts/verify.sh": "3977b00c4ace0beab1a42e78ff616f552389265cb7cef41488967696a2d0346a",
+    "scripts/audit-secrets.sh": "570a746d0194746cc8a62b7a0363ffe241550cdf5785580f8ab7eca3a93932a4",
+    "scripts/check-tokens.sh": "d8c69d416f649dd7dd0799bb88a33e0f6e5c202665bd19cbe744ef099dd14674",
+    "scripts/validate_app_map.py": "961026051acd9f2e0040a88a73bc92a60881d7022f20cfd37a716b8b07ed0946",
+    "docs/decisions.md": "21055bfe09c72b5b8a9ef49f857ae8d20731f271d4524d04a460faa8646ec263",
+    "docs/stages.md": "3c62d81fc00d418c1df3dc209e548593dff5c16c7e736e50a942631991c520b0",
+    "docs/app-map.template.md": "db5fd908940e7e7273368a2d9212f3d412ef109c1f952760d9822e7483fae934",
+    "docs/components.md": "e239fc9ac954d53a7c3ef7cc457adf33358890c8e31fe9eca30ea89b984779f6",
+    "tests/.gitkeep": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".ui-artifacts/.gitkeep": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".yamllint.yml": "ffa816098b88cfd439a63f663442a5e3e13bbd3dd7f89625104c6165890fd32f",
+    "_typos.toml": "788f3cdddbf2662fb8ae9d51672475cc39db35f890417e5b07faf9c87f06a36d",
+    ".opencode/skills/a-to-z-runner/SKILL.md": "415d501c7362fa927918640ac7e7afe58afb64f5ca4f17b176bb487f437c4644",
+    ".opencode/skills/content-bank/SKILL.md": "12657e0a2bf2b5d09f6164c176f0014bbbeb55dfcd9f6df15642291e6d0af595",
+    ".opencode/skills/design-iteration/SKILL.md": "0c1b7340a38e320fa744a50b1176045c21bdb26de2ee89fdd162c49deab981e0",
+    ".opencode/skills/domain-modeling/SKILL.md": "a0dae4296dd76e26fbf2ef2515047355ee7c9f66a1b55a934f856c821168561e",
+    ".opencode/skills/screen-flows/SKILL.md": "4b58652f7655f6e578a0f0a85b754c94a83cac335805f7d93e52f130d3fae8b0",
+    "STATE.md": "f04a346172811570535fc65098050a92c39f26568098451e7f46409073ed66e7",
+    "docs/app-map.md": "db5fd908940e7e7273368a2d9212f3d412ef109c1f952760d9822e7483fae934",
+    "docs/domain.md": "07e9011e39dc1dc4512f22c810c4157f548d3d8762c46514035567d6ac7b11b3",
+    "tokens.json": "ebb26928c4d78c667bf946f232aaee5efc1c65917aa08f44e3763b799d399b2a"
+  },
+  "owned": {
+    "lefthook.yml": "4061a3ed93c76ce75700c90b3466b05209feca251801cf7ff9ed4b7735271855",
+    "README.md": "ff4a43a87649fbaf547df3769a591d85176805222b8b8ed6fbd7976f5a1bc42c"
+  }
+}

@@ -1,0 +1,8 @@
+# House typos config (scaffold baseline).
+# Image binaries are excluded: byte soup trips the tokenizer
+# (observed: `Pn` inside a PNG flagged as a typo).
+
+[files]
+# Explicit paths need the hook to pass --force-exclude (config covers walks only).
+extend-exclude = ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp", "*.ico",
+                  "*.bmp", "*.tif", "*.tiff"]

@@ -1,0 +1,5 @@
+# House mise toolchain pins (managed by scaffold_project).
+[tools]
+node = "22"
+python = "3.13"
+uv = "latest"
