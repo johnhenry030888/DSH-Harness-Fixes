@@ -18,7 +18,6 @@
     "docs/stages.md": "3c62d81fc00d418c1df3dc209e548593dff5c16c7e736e50a942631991c520b0",
     "docs/app-map.template.md": "db5fd908940e7e7273368a2d9212f3d412ef109c1f952760d9822e7483fae934",
     "docs/components.md": "e239fc9ac954d53a7c3ef7cc457adf33358890c8e31fe9eca30ea89b984779f6",
-    "tests/.gitkeep": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     ".ui-artifacts/.gitkeep": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     ".yamllint.yml": "ffa816098b88cfd439a63f663442a5e3e13bbd3dd7f89625104c6165890fd32f",
     "_typos.toml": "788f3cdddbf2662fb8ae9d51672475cc39db35f890417e5b07faf9c87f06a36d",
@@ -27,13 +26,14 @@
     ".opencode/skills/design-iteration/SKILL.md": "0c1b7340a38e320fa744a50b1176045c21bdb26de2ee89fdd162c49deab981e0",
     ".opencode/skills/domain-modeling/SKILL.md": "a0dae4296dd76e26fbf2ef2515047355ee7c9f66a1b55a934f856c821168561e",
     ".opencode/skills/screen-flows/SKILL.md": "4b58652f7655f6e578a0f0a85b754c94a83cac335805f7d93e52f130d3fae8b0",
-    "STATE.md": "f04a346172811570535fc65098050a92c39f26568098451e7f46409073ed66e7",
     "docs/app-map.md": "db5fd908940e7e7273368a2d9212f3d412ef109c1f952760d9822e7483fae934",
     "docs/domain.md": "07e9011e39dc1dc4512f22c810c4157f548d3d8762c46514035567d6ac7b11b3",
-    "tokens.json": "ebb26928c4d78c667bf946f232aaee5efc1c65917aa08f44e3763b799d399b2a"
+    "tokens.json": "ebb26928c4d78c667bf946f232aaee5efc1c65917aa08f44e3763b799d399b2a",
+    "mise.toml": "2a15829092331bedcdf7141d177bbbc48fc7bc2f36ef34b26170f82804d7e3b1"
   },
   "owned": {
-    "lefthook.yml": "4061a3ed93c76ce75700c90b3466b05209feca251801cf7ff9ed4b7735271855",
-    "README.md": "ff4a43a87649fbaf547df3769a591d85176805222b8b8ed6fbd7976f5a1bc42c"
+    "lefthook.yml": "043090bad7bce82b5764ff7a84b217140a273d7206dc66865dbb2e03824c45d5",
+    "README.md": "ff4a43a87649fbaf547df3769a591d85176805222b8b8ed6fbd7976f5a1bc42c",
+    "STATE.md": "7aee13e578ece0be2877739b0f66c7b55073f91762dd7ce7f7dcbe15b0b847a5"
   }
 }
