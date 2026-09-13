@@ -8,7 +8,6 @@ set -eu
 TARGET_DIR="${1:-${PWD}}"
 cd "$TARGET_DIR"
 FAIL=0
-warn() { printf 'warn: %s\n' "$1"; }
 fail() {
   printf 'fail: %s\n' "$1"
   FAIL=1
@@ -26,9 +25,9 @@ HAS_SRC=0
 if find . \( -name node_modules -o -name .git -o -name .venv -o -name _archive -o -name vendor -o -name dist -o -name build -o -name .ui-artifacts \) -prune -o \( -name '*.tsx' -o -name '*.jsx' -o -name '*.ts' -o -name '*.html' -o -name '*.css' \) -print 2>/dev/null | grep -q .; then HAS_SRC=1; fi
 if [ -z "$TOKENS" ]; then
   if [ "$HAS_SRC" -eq 1 ]; then
-    warn "token gate: UI sources exist but no tokens.json (Stage 3 incomplete)"
+    fail "token gate: UI sources exist but no tokens.json (Stage 3 incomplete)"
   else say "skip: token gate (no tokens.json, no UI sources)"; fi
-  exit 0
+  exit "$FAIL"
 fi
 say "token gate: $TOKENS"
 for key in fast normal slow; do
@@ -46,7 +45,7 @@ if grep -rInE --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.venv 
 if [ "$ANIM" -eq 1 ]; then
   if grep -rIn --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.venv --exclude-dir=_archive --exclude-dir=.ui-artifacts --exclude-dir=vendor --exclude-dir=dist --exclude-dir=build 'prefers-reduced-motion' --include='*.css' --include='*.tsx' --include='*.jsx' --include='*.ts' . 2>/dev/null | grep -q .; then
     say "token gate: prefers-reduced-motion fallback present"
-  else warn "token gate: animations exist without prefers-reduced-motion fallback"; fi
+  else fail "token gate: animations exist without prefers-reduced-motion fallback"; fi
 else say "skip: reduced-motion check (no animations)"; fi
 if [ "$FAIL" -ne 0 ]; then
   say "check-tokens: FAILED"

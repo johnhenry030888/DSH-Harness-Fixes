@@ -3,16 +3,16 @@
   "stack": "polyglot",
   "features": [],
   "description": "Batch project for DeepSeek Harness bug fixes",
-  "version": "1.10.0",
+  "version": "1.15.0",
   "date": "2026-09-12",
-  "audited": "2026-09-12",
+  "audited": "2026-09-13",
   "files": {
     ".editorconfig": "93f930437e215ca9ff99dd4d563370a44b94c4726b17f18623d172336d88d8cf",
-    ".gitignore": "6f2c7117cb0e2bc70de06c37436b2e9b86a18a9f53765f5045f6d8e5d9b1e42d",
+    ".gitignore": "60aafa6bd767ce0aca8a4433d6ae6c15c0e1725ddc3435048038e999b1e29ee9",
     ".env.example": "0e006f7bcbb86c21b6e33d43e85bda2153ac017d6b0c35991731cd8f4583aec0",
-    "scripts/verify.sh": "3977b00c4ace0beab1a42e78ff616f552389265cb7cef41488967696a2d0346a",
+    "scripts/verify.sh": "02479cc76a0195e662debbacbd9aa205706367b0be13fdf743fde7e366343125",
     "scripts/audit-secrets.sh": "570a746d0194746cc8a62b7a0363ffe241550cdf5785580f8ab7eca3a93932a4",
-    "scripts/check-tokens.sh": "d8c69d416f649dd7dd0799bb88a33e0f6e5c202665bd19cbe744ef099dd14674",
+    "scripts/check-tokens.sh": "d6c0c8239297411616e78b7bb7d3c31c1a355f4cbea9465c7b9f8e7a2fbef1f0",
     "scripts/validate_app_map.py": "961026051acd9f2e0040a88a73bc92a60881d7022f20cfd37a716b8b07ed0946",
     "docs/decisions.md": "21055bfe09c72b5b8a9ef49f857ae8d20731f271d4524d04a460faa8646ec263",
     "docs/stages.md": "3c62d81fc00d418c1df3dc209e548593dff5c16c7e736e50a942631991c520b0",
@@ -29,11 +29,64 @@
     "docs/app-map.md": "db5fd908940e7e7273368a2d9212f3d412ef109c1f952760d9822e7483fae934",
     "docs/domain.md": "07e9011e39dc1dc4512f22c810c4157f548d3d8762c46514035567d6ac7b11b3",
     "tokens.json": "ebb26928c4d78c667bf946f232aaee5efc1c65917aa08f44e3763b799d399b2a",
-    "mise.toml": "2a15829092331bedcdf7141d177bbbc48fc7bc2f36ef34b26170f82804d7e3b1"
+    "mise.toml": "2a15829092331bedcdf7141d177bbbc48fc7bc2f36ef34b26170f82804d7e3b1",
+    "scripts/workflow.py": "c0dc7cd6ec162b7179242676ae2f6f7d4a33e8871aac8d3f9298d799976765de",
+    ".opencode/skills/project-autonomy/SKILL.md": "b131bf79534f0ac062c9b472e4c129e59bac8cabf10693a27c1728fa5f2e07e5"
   },
   "owned": {
     "lefthook.yml": "043090bad7bce82b5764ff7a84b217140a273d7206dc66865dbb2e03824c45d5",
     "README.md": "ff4a43a87649fbaf547df3769a591d85176805222b8b8ed6fbd7976f5a1bc42c",
     "STATE.md": "7aee13e578ece0be2877739b0f66c7b55073f91762dd7ce7f7dcbe15b0b847a5"
+  },
+  "stackDecision": {
+    "requested": "auto",
+    "selected": "polyglot",
+    "stack": "polyglot",
+    "detected": "polyglot",
+    "current": "polyglot",
+    "desired": "none",
+    "reason": "both Node and Python manifests are present"
+  },
+  "intent": "Batch project for DeepSeek Harness bug fixes",
+  "release": {
+    "engineVersion": "1.15.0",
+    "fleetRevision": "c8044d729b6c9581e57bdf2a490fa56eb6c1e976",
+    "templateRevision": "c8044d729b6c9581e57bdf2a490fa56eb6c1e976",
+    "templateDirty": false,
+    "manifestSha256": "c0a98502337ab61f9abd637e68a8b76c93aa0c7a7d251747d8b83f9badfcff99",
+    "profileVersion": "1.11.0"
+  },
+  "workflow": {
+    "schema": 1,
+    "project": "DSH-Harness-Fixes",
+    "stack": "polyglot",
+    "features": [],
+    "state": "ready",
+    "stage": "bootstrap",
+    "required_artifacts": [
+      "AGENTS.md",
+      "README.md",
+      "STATE.md",
+      "scripts/verify.sh",
+      ".scaffold.json"
+    ],
+    "required_gates": ["verify", "secrets", "lint", "tests", "typecheck"],
+    "gates": {},
+    "commit": {
+      "state": "pending",
+      "hash": "",
+      "evidence": ""
+    },
+    "push": {
+      "state": "pending",
+      "evidence": ""
+    },
+    "residual_risks": [],
+    "retry": {
+      "attempt": 0,
+      "last_error": "",
+      "resumable": true
+    },
+    "history": []
   }
 }

@@ -56,3 +56,6 @@ cmake_install.cmake
 .env
 .env.*
 !.env.example
+
+# --- House workflow state (shared by opencode and DSH, not product source) ---
+.scaffold-workflow.json
