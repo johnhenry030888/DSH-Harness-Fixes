@@ -1,0 +1,135 @@
+--- /tmp/bug004pristine/host/package/lib/types/api-proxy.js	1985-10-26 10:15:00.000000000 +0200
++++ /tmp/bug004src/host/package/lib/types/api-proxy.js	2026-09-12 21:59:54.655822162 +0200
+@@ -26,7 +26,7 @@
+ // service reads stay optional (`ctx.get`) so a composition without either
+ // provider still serves every other domain.
+ import { SettingsConflictError, settingsNamespace } from '@deepseek-ai/dsh-settings';
+-import { credentialRef } from '@deepseek-ai/dsh-credentials';
++import { credentialRef, parseCredentialKey } from '@deepseek-ai/dsh-credentials';
+ // Value edge: the rename impl narrows the title service's validation failure; the import also resolves `ctx.get('sessionTitle')`.
+ import { SessionTitleInvalidError } from '@deepseek-ai/dsh-session-title';
+ import { approvalResponsePayloadSchema } from "./api/approvals.schema.js";
+@@ -843,6 +843,24 @@
+     let workspaceCreationChain = Promise.resolve();
+     const pendingQuestions = new Map();
+     const pendingApprovals = new Map();
++    /** Loopback authorization jobs bridge the request-scoped interaction seam to polling UI calls. */
++    const authorizationAttempts = new Map();
++    const authorizationView = (attempt) => ({
++        status: attempt.status,
++        notices: attempt.notices.slice(-24),
++        ...attempt.prompt === undefined ? {} : { prompt: attempt.prompt.view },
++        ...attempt.error === undefined ? {} : { error: attempt.error },
++    });
++    const authorizationMissing = () => ({
++        code: 'internal',
++        message: 'authorization service is absent: this deployment does not mount @deepseek-ai/dsh-authorization',
++        details: {},
++    });
++    const authorizationAttemptMissing = (attemptId) => ({
++        code: 'bad-request',
++        message: `unknown authorization attempt "${attemptId}"`,
++        details: {},
++    });
+     const muxQueues = new Set();
+     const imageAdmissionChains = new WeakMap();
+     /** Serialize image admission with model selection for one agent. */
+@@ -2995,6 +3013,91 @@
+                 return ok(request, {});
+             },
+         },
++        authorization: {
++            list(request) {
++                const authorization = ctx.get('authorization');
++                if (authorization === undefined)
++                    return Promise.resolve(err(request, authorizationMissing()));
++                return Promise.resolve(ok(request, { flows: authorization.list() }));
++            },
++            async begin(request) {
++                const authorization = ctx.get('authorization');
++                if (authorization === undefined)
++                    return err(request, authorizationMissing());
++                const key = parseCredentialKey(request.payload.key);
++                const attemptId = randomUUID();
++                const attempt = {
++                    attemptId,
++                    key,
++                    status: 'running',
++                    notices: [],
++                };
++                authorizationAttempts.set(attemptId, attempt);
++                const interaction = {
++                    notify: notice => {
++                        if (attempt.status === 'running')
++                            attempt.notices.push({ message: notice.message, ...notice.url === undefined ? {} : { url: notice.url }, ...notice.code === undefined ? {} : { code: notice.code } });
++                    },
++                    prompt: prompt => new Promise((resolve, reject) => {
++                        const promptId = randomUUID();
++                        const view = { id: promptId, kind: prompt.kind, message: prompt.message, ...prompt.placeholder === undefined ? {} : { placeholder: prompt.placeholder }, ...prompt.options === undefined ? {} : { options: prompt.options } };
++                        const current = { view, resolve, reject };
++                        attempt.prompt = current;
++                        const onAbort = () => {
++                            if (attempt.prompt !== current)
++                                return;
++                            attempt.prompt = undefined;
++                            reject(new Error('authorization prompt withdrawn'));
++                        };
++                        current.cleanup = () => prompt.signal?.removeEventListener('abort', onAbort);
++                        prompt.signal?.addEventListener('abort', onAbort, { once: true });
++                        if (prompt.signal?.aborted === true)
++                            onAbort();
++                    }),
++                };
++                void authorization.begin({ key, ...request.payload.method === undefined ? {} : { method: request.payload.method }, interaction }).then((outcome) => {
++                    attempt.status = outcome.status;
++                }).catch((error) => {
++                    attempt.status = 'failed';
++                    attempt.error = error instanceof Error ? error.message : String(error);
++                }).finally(() => {
++                    if (attempt.prompt !== undefined) {
++                        attempt.prompt.cleanup?.();
++                        attempt.prompt = undefined;
++                    }
++                });
++                return ok(request, { attemptId });
++            },
++            status(request) {
++                const attempt = authorizationAttempts.get(request.payload.attemptId);
++                if (attempt === undefined)
++                    return Promise.resolve(err(request, authorizationAttemptMissing(request.payload.attemptId)));
++                return Promise.resolve(ok(request, authorizationView(attempt)));
++            },
++            answer(request) {
++                const attempt = authorizationAttempts.get(request.payload.attemptId);
++                if (attempt === undefined)
++                    return Promise.resolve(err(request, authorizationAttemptMissing(request.payload.attemptId)));
++                const prompt = attempt.prompt;
++                if (prompt === undefined || prompt.view.id !== request.payload.promptId)
++                    return Promise.resolve(ok(request, { accepted: false }));
++                attempt.prompt = undefined;
++                prompt.cleanup?.();
++                prompt.resolve(request.payload.value);
++                return Promise.resolve(ok(request, { accepted: true }));
++            },
++            cancel(request) {
++                const attempt = authorizationAttempts.get(request.payload.attemptId);
++                if (attempt === undefined)
++                    return Promise.resolve(err(request, authorizationAttemptMissing(request.payload.attemptId)));
++                if (attempt.status === 'running') {
++                    ctx.get('authorization')?.cancel(attempt.key);
++                    attempt.prompt?.reject(new Error('authorization cancelled'));
++                    attempt.prompt = undefined;
++                }
++                return Promise.resolve(ok(request, { accepted: true }));
++            },
++        },
+         llm: {
+             providers(request) {
+                 const registered = ctx.llm.listProviders();
+@@ -3356,4 +3459,4 @@
+         },
+     };
+ }
+-//# sourceMappingURL=api-proxy.js.map
+\ No newline at end of file
++//# sourceMappingURL=api-proxy.js.map

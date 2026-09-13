@@ -1,0 +1,29 @@
+--- /tmp/bug004pristine/host/package/lib/types/api/rpc-map.d.ts	1985-10-26 10:15:00.000000000 +0200
++++ /tmp/bug004src/host/package/lib/types/api/rpc-map.d.ts	2026-09-12 21:58:44.162525362 +0200
+@@ -11,6 +11,7 @@
+ import type { GoalsApi } from './goals.ts';
+ import type { SettingsApi } from './settings.ts';
+ import type { CredentialsApi } from './credentials.ts';
++import type { AuthorizationApi } from './authorization.ts';
+ import type { LlmApi } from './llm.ts';
+ import type { SubagentsApi } from './subagents.ts';
+ import type { RpcResponse } from './rpc.ts';
+@@ -69,6 +70,11 @@
+     'credentials.describe': CredentialsApi['describe'];
+     'credentials.set': CredentialsApi['set'];
+     'credentials.unset': CredentialsApi['unset'];
++    'authorization.list': AuthorizationApi['list'];
++    'authorization.begin': AuthorizationApi['begin'];
++    'authorization.status': AuthorizationApi['status'];
++    'authorization.answer': AuthorizationApi['answer'];
++    'authorization.cancel': AuthorizationApi['cancel'];
+     'llm.providers': LlmApi['providers'];
+     'llm.models': LlmApi['models'];
+     'llm.discoverModels': LlmApi['discoverModels'];
+@@ -77,4 +83,4 @@
+ export type RequestPayload<K extends keyof RpcMethodMap> = Parameters<RpcMethodMap[K]>[0]['payload'];
+ /** Business return value of method K (reaches through the RpcResponse narrow form to infer the ok value of result). */
+ export type ResponseValue<K extends keyof RpcMethodMap> = Awaited<ReturnType<RpcMethodMap[K]>> extends RpcResponse<infer T> ? T : never;
+-//# sourceMappingURL=rpc-map.d.ts.map
+\ No newline at end of file
++//# sourceMappingURL=rpc-map.d.ts.map

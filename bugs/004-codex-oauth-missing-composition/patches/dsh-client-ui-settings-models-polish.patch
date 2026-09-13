@@ -1,0 +1,55 @@
+--- /tmp/bug004-installed/ui/package/lib/client.js
++++ /tmp/bug004-fixed/ui/package/lib/client.js
+@@ -1802,4 +1802,13 @@
+ 			react.useEffect(() => {
+ 				void loadFlows();
+ 			}, []);
++			react.useEffect(() => {
++				const prompt = snapshot?.prompt;
++				if (prompt?.kind === "select") {
++					const firstOption = prompt.options[0]?.id ?? "";
++					if (firstOption !== "" && !prompt.options.some((option) => option.id === answer)) setAnswer(firstOption);
++				} else if (prompt === void 0 && answer !== "") {
++					setAnswer("");
++				}
++			}, [snapshot?.prompt?.id]);
+ 			react.useEffect(() => {
+@@ -1841,4 +1841,5 @@
+ 			const begin = async (flow, method) => {
+ 				setFailure(void 0);
+ 				setSnapshot(void 0);
++				setAnswer("");
+ 				try {
+@@ -1862,3 +1862,7 @@
+ 			const submit = async () => {
+ 				if (attemptId === void 0 || snapshot?.prompt === void 0) return;
++				if (snapshot.prompt.kind === "select" && answer === "") {
++					setFailure("Choose a login method to continue");
++					return;
++				}
+ 				await api.authorization.answer({ attemptId, promptId: snapshot.prompt.id, value: answer });
+@@ -1870,4 +1870,5 @@
+ 			};
+ 			if (flows.length === 0) return null;
++			const panelState = failure !== void 0 ? "error" : snapshot?.prompt !== void 0 ? "active" : attemptId !== void 0 ? "loading" : "idle";
+ 			return (0, react_jsx_runtime.jsxs)("div", {
+-				className: ModelsSection_module_css_default["rowCard"],
++				className: `${ModelsSection_module_css_default["rowCard"]} authorization-panel`,
++				"data-state": panelState,
+@@ -1880,4 +1880,7 @@
+ 						className: ModelsSection_module_css_default["rowName"],
+ 						children: "Subscription sign-in"
+ 					})
++				}), (0, react_jsx_runtime.jsx)("p", {
++					className: ModelsSection_module_css_default["intro"],
++					children: "Use a provider subscription without copying an API key into DSH."
+ 				}), flows.map((flow) => (0, react_jsx_runtime.jsxs)("div", {
+@@ -1898,3 +1898,8 @@
+ 							})]
+ 					})
++				}, flow.key)), attemptId !== void 0 && snapshot === void 0 ? (0, react_jsx_runtime.jsx)("p", {
++					className: ModelsSection_module_css_default["notice"],
++					role: "status",
++					children: "Starting secure sign-in..."
++				}) : null, snapshot?.notices?.map((notice, index) => (0, react_jsx_runtime.jsxs)("p", {
+ 					className: ModelsSection_module_css_default["notice"],

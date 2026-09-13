@@ -1,0 +1,15 @@
+--- /tmp/pristine/dsh-base/cordis.patch.yml
++++ /home/john/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-base/cordis.patch.yml
+@@ -85,6 +85,12 @@
+     - id: credentials
+       name: '@deepseek-ai/dsh-credentials-local'
+ 
++    # The authorization seam owns interactive provider sign-in flows. The
++    # pi-ai adapter registers OpenAI Codex OAuth here; credentials remain in
++    # the managed credential store and refresh through pi-ai.
++    - id: authorization
++      name: '@deepseek-ai/dsh-authorization'
++
+     # The pi-ai multi-provider twin, mounted dormant: zero routes (and no extra
+     # models in the picker) until a `llm-pi-ai:` settings section supplies provider
+     # profiles — then those routes register live, keys resolving per request

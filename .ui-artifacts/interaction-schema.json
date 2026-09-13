@@ -1,0 +1,34 @@
+{
+  "name": "settings-flow",
+  "surface": "models-subscription-sign-in",
+  "states": ["Idle", "Loading", "Active", "Morphing", "Reviewing"],
+  "events": [
+    "selectProviderMethod",
+    "beginAuthorization",
+    "receivePrompt",
+    "submitPrompt",
+    "cancelAuthorization",
+    "authorizationAuthorized",
+    "authorizationFailed"
+  ],
+  "transitions": [
+    { "from": "Idle", "event": "beginAuthorization", "to": "Loading" },
+    { "from": "Loading", "event": "receivePrompt", "to": "Active" },
+    { "from": "Active", "event": "submitPrompt", "to": "Loading" },
+    { "from": "Active", "event": "cancelAuthorization", "to": "Idle" },
+    { "from": "Loading", "event": "authorizationAuthorized", "to": "Reviewing" },
+    { "from": "Loading", "event": "authorizationFailed", "to": "Reviewing" }
+  ],
+  "sharedLayoutIds": [
+    "subscription-sign-in-card",
+    "authorization-prompt",
+    "authorization-feedback"
+  ],
+  "motionTokens": {
+    "fast": "150ms",
+    "normal": "250ms",
+    "slow": "400ms",
+    "emphasized": "cubic-bezier(0.2, 0, 0, 1)",
+    "decelerate": "cubic-bezier(0, 0, 0.2, 1)"
+  }
+}

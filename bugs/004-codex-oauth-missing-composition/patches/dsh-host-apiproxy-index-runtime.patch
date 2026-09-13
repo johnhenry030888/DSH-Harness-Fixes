@@ -1,0 +1,25 @@
+--- /tmp/bug004pristine/host/package/lib/types/index.js	1985-10-26 10:15:00.000000000 +0200
++++ /tmp/bug004src/host/package/lib/types/index.js	2026-09-12 22:19:18.270568138 +0200
+@@ -44,6 +44,7 @@
+     agentPresets;
+     settings;
+     credentials;
++    authorization;
+     llm;
+     events;
+     downloads;
+@@ -71,6 +72,7 @@
+         this.agentPresets = api.agentPresets;
+         this.settings = api.settings;
+         this.credentials = api.credentials;
++        this.authorization = api.authorization;
+         this.llm = api.llm;
+         this.events = api.events;
+         this.downloads = api.downloads;
+@@ -80,4 +82,4 @@
+     }
+ }
+ export default ApiProxyService;
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
++//# sourceMappingURL=index.js.map

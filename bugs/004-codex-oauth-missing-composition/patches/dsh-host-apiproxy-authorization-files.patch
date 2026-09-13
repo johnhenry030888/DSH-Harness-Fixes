@@ -1,0 +1,85 @@
+--- /dev/null	2026-09-12 18:32:45.129774160 +0200
++++ lib/types/api/authorization.schema.js
+@@ -0,0 +1,49 @@
++/** Authorization domain schemas. Secrets never cross this boundary. */
++import { z } from 'zod';
++
++export const authorizationKeySchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*\/[a-z0-9]+(?:-[a-z0-9]+)*$/);
++export const authorizationAttemptIdSchema = z.string().uuid();
++export const authorizationPromptIdSchema = z.string().uuid();
++
++const authorizationPromptOptionSchema = z.object({
++    id: z.string().min(1),
++    label: z.string().min(1),
++    description: z.string().optional(),
++});
++const authorizationPromptSchema = z.discriminatedUnion('kind', [
++    z.object({ id: authorizationPromptIdSchema, kind: z.literal('text'), message: z.string(), placeholder: z.string().optional() }),
++    z.object({ id: authorizationPromptIdSchema, kind: z.literal('secret'), message: z.string(), placeholder: z.string().optional() }),
++    z.object({ id: authorizationPromptIdSchema, kind: z.literal('select'), message: z.string(), options: z.array(authorizationPromptOptionSchema) }),
++]);
++const authorizationNoticeSchema = z.object({
++    message: z.string(),
++    url: z.string().optional(),
++    code: z.string().optional(),
++});
++const authorizationMethodSchema = z.object({ id: z.string().min(1), label: z.string().min(1) });
++const authorizationEntrySchema = z.object({
++    key: authorizationKeySchema,
++    label: z.string().min(1),
++    methods: z.array(authorizationMethodSchema),
++    inFlight: z.boolean(),
++});
++
++export const authorizationListRequestSchema = z.object({});
++export const authorizationListValueSchema = z.object({ flows: z.array(authorizationEntrySchema) });
++export const authorizationBeginRequestSchema = z.object({ key: authorizationKeySchema, method: z.string().min(1).optional() });
++export const authorizationBeginValueSchema = z.object({ attemptId: authorizationAttemptIdSchema });
++export const authorizationStatusRequestSchema = z.object({ attemptId: authorizationAttemptIdSchema });
++export const authorizationStatusValueSchema = z.object({
++    status: z.union([z.literal('running'), z.literal('authorized'), z.literal('cancelled'), z.literal('failed')]),
++    notices: z.array(authorizationNoticeSchema),
++    prompt: authorizationPromptSchema.optional(),
++    error: z.string().optional(),
++});
++export const authorizationAnswerRequestSchema = z.object({
++    attemptId: authorizationAttemptIdSchema,
++    promptId: authorizationPromptIdSchema,
++    value: z.string(),
++});
++export const authorizationAnswerValueSchema = z.object({ accepted: z.boolean() });
++export const authorizationCancelRequestSchema = z.object({ attemptId: authorizationAttemptIdSchema });
++export const authorizationCancelValueSchema = z.object({ accepted: z.boolean() });
+--- /dev/null	2026-09-12 18:32:45.129774160 +0200
++++ lib/types/api/authorization.schema.d.ts
+@@ -0,0 +1,14 @@
++import { z } from 'zod';
++export declare const authorizationKeySchema: z.ZodString;
++export declare const authorizationAttemptIdSchema: z.ZodString;
++export declare const authorizationPromptIdSchema: z.ZodString;
++export declare const authorizationListRequestSchema: z.ZodObject<{}>;
++export declare const authorizationListValueSchema: z.ZodObject<any>;
++export declare const authorizationBeginRequestSchema: z.ZodObject<any>;
++export declare const authorizationBeginValueSchema: z.ZodObject<any>;
++export declare const authorizationStatusRequestSchema: z.ZodObject<any>;
++export declare const authorizationStatusValueSchema: z.ZodObject<any>;
++export declare const authorizationAnswerRequestSchema: z.ZodObject<any>;
++export declare const authorizationAnswerValueSchema: z.ZodObject<any>;
++export declare const authorizationCancelRequestSchema: z.ZodObject<any>;
++export declare const authorizationCancelValueSchema: z.ZodObject<any>;
+--- /dev/null	2026-09-12 18:32:45.129774160 +0200
++++ lib/types/api/authorization.d.ts
+@@ -0,0 +1,13 @@
++import type { CredentialKey } from '@deepseek-ai/dsh-credentials/types';
++import type { RpcRequest, RpcResponse } from './rpc.ts';
++export interface AuthorizationMethodView { id: string; label: string; }
++export interface AuthorizationNoticeView { message: string; url?: string; code?: string; }
++export interface AuthorizationPromptView { id: string; kind: 'text' | 'secret' | 'select'; message: string; placeholder?: string; options?: readonly { id: string; label: string; description?: string }[]; }
++export interface AuthorizationEntryView { key: CredentialKey; label: string; methods: readonly AuthorizationMethodView[]; inFlight: boolean; }
++export interface AuthorizationApi {
++    list(request: RpcRequest<{}>): Promise<RpcResponse<{ flows: readonly AuthorizationEntryView[] }>>;
++    begin(request: RpcRequest<{ key: CredentialKey; method?: string }>): Promise<RpcResponse<{ attemptId: string }>>;
++    status(request: RpcRequest<{ attemptId: string }>): Promise<RpcResponse<{ status: 'running' | 'authorized' | 'cancelled' | 'failed'; notices: readonly AuthorizationNoticeView[]; prompt?: AuthorizationPromptView; error?: string }>>;
++    answer(request: RpcRequest<{ attemptId: string; promptId: string; value: string }>): Promise<RpcResponse<{ accepted: boolean }>>;
++    cancel(request: RpcRequest<{ attemptId: string }>): Promise<RpcResponse<{ accepted: boolean }>>;
++}

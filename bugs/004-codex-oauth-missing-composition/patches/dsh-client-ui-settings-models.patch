@@ -1,0 +1,144 @@
+--- /tmp/bug004pristine/ui/package/lib/client.js	1985-10-26 10:15:00.000000000 +0200
++++ /tmp/bug004src/ui/package/lib/client.js	2026-09-12 22:04:37.740997344 +0200
+@@ -1784,6 +1784,126 @@
+ 		function providerCopy(template, target) {
+ 			return template.replace("{provider}", () => providerTargetLabel(target));
+ 		}
++		/** Configuration-time authorization surface backed by loopback polling jobs. */
++		function AuthorizationPanel({ api, onAuthorized }) {
++			const [flows, setFlows] = react.useState([]);
++			const [attemptId, setAttemptId] = react.useState(void 0);
++			const [snapshot, setSnapshot] = react.useState(void 0);
++			const [answer, setAnswer] = react.useState("");
++			const [failure, setFailure] = react.useState(void 0);
++			const loadFlows = async () => {
++				try {
++					const response = await api.authorization.list({});
++					if (response.result.ok) setFlows(response.result.value.flows);
++				} catch (error) {
++					setFailure(messageOf(error));
++				}
++			};
++			react.useEffect(() => {
++				void loadFlows();
++			}, []);
++			react.useEffect(() => {
++				if (attemptId === void 0) return;
++				let stopped = false;
++				let timer;
++				const poll = async () => {
++					try {
++						const response = await api.authorization.status({ attemptId });
++						if (stopped || !response.result.ok) return;
++						const next = response.result.value;
++						setSnapshot(next);
++						if (next.status === "running") {
++							timer = setTimeout(poll, 350);
++							return;
++						}
++						if (next.status === "authorized") onAuthorized();
++						if (next.status === "failed") setFailure(next.error ?? "Authorization failed");
++						setAttemptId(void 0);
++						void loadFlows();
++					} catch (error) {
++						if (!stopped) setFailure(messageOf(error));
++					}
++				};
++				void poll();
++				return () => {
++					stopped = true;
++					if (timer !== void 0) clearTimeout(timer);
++				};
++			}, [attemptId]);
++			const begin = async (flow, method) => {
++				setFailure(void 0);
++				setSnapshot(void 0);
++				try {
++					const response = await api.authorization.begin({ key: flow.key, method });
++					if (!response.result.ok) {
++						setFailure(response.result.error.message);
++						return;
++					}
++					setAttemptId(response.result.value.attemptId);
++				} catch (error) {
++					setFailure(messageOf(error));
++				}
++			};
++			const cancel = async () => {
++				if (attemptId === void 0) return;
++				await api.authorization.cancel({ attemptId });
++				setAttemptId(void 0);
++				setSnapshot(void 0);
++				void loadFlows();
++			};
++			const submit = async () => {
++				if (attemptId === void 0 || snapshot?.prompt === void 0) return;
++				await api.authorization.answer({ attemptId, promptId: snapshot.prompt.id, value: answer });
++				setAnswer("");
++			};
++			if (flows.length === 0) return null;
++			return (0, react_jsx_runtime.jsxs)("div", {
++				className: ModelsSection_module_css_default["rowCard"],
++				children: [(0, react_jsx_runtime.jsx)("div", {
++					className: ModelsSection_module_css_default["rowHead"],
++					children: (0, react_jsx_runtime.jsx)("span", {
++						className: ModelsSection_module_css_default["rowName"],
++						children: "Subscription sign-in"
++					})
++				}), flows.map((flow) => (0, react_jsx_runtime.jsxs)("div", {
++					className: ModelsSection_module_css_default["field"],
++					children: [(0, react_jsx_runtime.jsx)("span", {
++						className: ModelsSection_module_css_default["fieldLabel"],
++						children: flow.label
++					}), (0, react_jsx_runtime.jsxs)("div", {
++						className: ModelsSection_module_css_default["rowActions"],
++						children: flow.methods.map((method) => (0, react_jsx_runtime.jsx)("button", {
++							type: "button",
++							className: ModelsSection_module_css_default["primaryButton"],
++							disabled: attemptId !== void 0 || flow.inFlight,
++							onClick: () => void begin(flow, method.id),
++							children: method.label
++						}, method.id))
++					})]
++				}, flow.key)), snapshot?.notices?.map((notice, index) => (0, react_jsx_runtime.jsxs)("p", {
++					className: ModelsSection_module_css_default["notice"],
++					role: "status",
++					children: [notice.message, notice.url === void 0 ? null : (0, react_jsx_runtime.jsx)("a", { href: notice.url, target: "_blank", rel: "noreferrer", children: " Open sign-in page" }), notice.code === void 0 ? null : ` (${notice.code})`]
++				}, `${notice.message}-${index}`)), snapshot?.prompt === void 0 ? null : (0, react_jsx_runtime.jsxs)("div", {
++					className: ModelsSection_module_css_default["field"],
++					children: [(0, react_jsx_runtime.jsx)("label", { className: ModelsSection_module_css_default["fieldLabel"], children: snapshot.prompt.message }), snapshot.prompt.kind === "select" ? (0, react_jsx_runtime.jsx)("select", {
++						className: ModelsSection_module_css_default["input"],
++						value: answer,
++						onChange: (event) => setAnswer(event.target.value),
++						children: snapshot.prompt.options.map((option) => (0, react_jsx_runtime.jsx)("option", { value: option.id, children: option.label }, option.id))
++					}) : (0, react_jsx_runtime.jsx)("input", {
++						className: ModelsSection_module_css_default["input"],
++						type: snapshot.prompt.kind === "secret" ? "password" : "text",
++						value: answer,
++						placeholder: snapshot.prompt.placeholder,
++						onChange: (event) => setAnswer(event.target.value)
++					}), (0, react_jsx_runtime.jsxs)("div", {
++						className: ModelsSection_module_css_default["rowActions"],
++						children: [(0, react_jsx_runtime.jsx)("button", { type: "button", className: ModelsSection_module_css_default["primaryButton"], onClick: () => void submit(), children: "Continue" }), (0, react_jsx_runtime.jsx)("button", { type: "button", className: ModelsSection_module_css_default["secondaryButton"], onClick: () => void cancel(), children: "Cancel" })]
++					})]
++				}), failure === void 0 ? null : (0, react_jsx_runtime.jsx)("p", { className: ModelsSection_module_css_default["error"], role: "alert", children: failure })]
++			});
++		}
+ 		/**
+ 		* Render the Models section content column.
+ 		* @param props - slot-delivered injected dependencies.
+@@ -1894,6 +2014,7 @@
+ 						className: ModelsSection_module_css_default["intro"],
+ 						children: t("intro")
+ 					}),
++					(0, react_jsx_runtime.jsx)(AuthorizationPanel, { api, onAuthorized: () => controller.load() }),
+ 					!state.writable && state.status === "ready" ? (0, react_jsx_runtime.jsx)("p", {
+ 						className: ModelsSection_module_css_default["notice"],
+ 						children: t("readOnly")
+@@ -2809,4 +2930,4 @@
+ 	}
+ });
+ 
+-//# sourceMappingURL=client.js.map
+\ No newline at end of file
++//# sourceMappingURL=client.js.map

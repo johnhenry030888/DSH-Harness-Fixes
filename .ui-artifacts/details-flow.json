@@ -1,0 +1,10 @@
+{
+  "name": "details-flow",
+  "states": ["Idle", "Reviewing"],
+  "events": ["selectTool", "closeDetails"],
+  "transitions": [
+    { "from": "Idle", "event": "selectTool", "to": "Reviewing" },
+    { "from": "Reviewing", "event": "closeDetails", "to": "Idle" }
+  ],
+  "sharedLayoutIds": ["details-pane", "tool-row"]
+}

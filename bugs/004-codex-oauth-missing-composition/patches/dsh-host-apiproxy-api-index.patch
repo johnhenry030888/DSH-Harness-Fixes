@@ -1,0 +1,33 @@
+--- /tmp/bug004pristine/host/package/lib/types/api/index.d.ts	1985-10-26 10:15:00.000000000 +0200
++++ /tmp/bug004src/host/package/lib/types/api/index.d.ts	2026-09-12 22:08:13.284879609 +0200
+@@ -13,6 +13,7 @@
+ import type { GoalsApi } from './goals.ts';
+ import type { SettingsApi } from './settings.ts';
+ import type { CredentialsApi } from './credentials.ts';
++import type { AuthorizationApi } from './authorization.ts';
+ import type { LlmApi } from './llm.ts';
+ import type { DownloadsApi } from './downloads.ts';
+ import type { ClientResponse, RpcReceipt } from './rpc.ts';
+@@ -28,6 +29,7 @@
+     goals: GoalsApi;
+     settings: SettingsApi;
+     credentials: CredentialsApi;
++    authorization: AuthorizationApi;
+     llm: LlmApi;
+     /** Host-only download surfaces (GET, no wire envelope); absent from IApiClient. */
+     downloads: DownloadsApi;
+@@ -49,6 +51,7 @@
+ export type { GoalsApi, GoalId, GoalRef } from './goals.ts';
+ export type { SettingsApi, SettingsNamespaceView, SettingsPathOpView, SettingsSecretView } from './settings.ts';
+ export type { CredentialsApi, CredentialView } from './credentials.ts';
++export type { AuthorizationApi, AuthorizationEntryView, AuthorizationMethodView, AuthorizationNoticeView, AuthorizationPromptView } from './authorization.ts';
+ export type { ConfigurableProviderView, DiscoveredModelView, LlmApi } from './llm.ts';
+ export type { DownloadsApi } from './downloads.ts';
+ export type { ApprovalResponsePayload } from './approvals.ts';
+@@ -60,4 +63,4 @@
+ export { clientRequestSchema, serverRequestSchema, serverResponseSchema, } from './rpc.schema.ts';
+ export { SESSION_SEARCH_RESULT_LIMIT, SESSION_SEARCH_SNIPPET_MAX_CODE_POINTS, } from './session-search.ts';
+ export type { RequestPayload, ResponseValue, RpcMethodMap } from './rpc-map.ts';
+-//# sourceMappingURL=index.d.ts.map
+\ No newline at end of file
++//# sourceMappingURL=index.d.ts.map

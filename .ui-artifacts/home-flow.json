@@ -1,0 +1,10 @@
+{
+  "name": "home-flow",
+  "states": ["Idle", "Active", "Morphing"],
+  "events": ["openSettings", "openDetails"],
+  "transitions": [
+    { "from": "Idle", "event": "openSettings", "to": "Active" },
+    { "from": "Idle", "event": "openDetails", "to": "Active" }
+  ],
+  "sharedLayoutIds": ["sidebar", "composer", "details-pane"]
+}

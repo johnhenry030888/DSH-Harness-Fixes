@@ -1,0 +1,200 @@
+--- /tmp/bug004pristine/host/package/lib/index.js	1985-10-26 10:15:00.000000000 +0200
++++ /tmp/bug004src/host/package/lib/index.js	2026-09-12 22:19:18.268568130 +0200
+@@ -17,7 +17,7 @@
+ import { Zip, ZipDeflate } from "fflate";
+ import { GoalError } from "@deepseek-ai/dsh-goal";
+ import { SettingsConflictError, settingsNamespace } from "@deepseek-ai/dsh-settings";
+-import { credentialRef } from "@deepseek-ai/dsh-credentials";
++import { credentialRef, parseCredentialKey } from "@deepseek-ai/dsh-credentials";
+ import { SessionTitleInvalidError } from "@deepseek-ai/dsh-session-title";
+ import { UserQuestionError } from "@deepseek-ai/dsh-user-questions";
+ import { DirectoryPickerError } from "@deepseek-ai/dsh-host-directory-picker";
+@@ -1669,6 +1669,24 @@
+ 	let workspaceCreationChain = Promise.resolve();
+ 	const pendingQuestions = /* @__PURE__ */ new Map();
+ 	const pendingApprovals = /* @__PURE__ */ new Map();
++	/** Loopback authorization jobs bridge the request-scoped interaction seam to polling UI calls. */
++	const authorizationAttempts = /* @__PURE__ */ new Map();
++	const authorizationView = (attempt) => ({
++		status: attempt.status,
++		notices: attempt.notices.slice(-24),
++		...attempt.prompt === void 0 ? {} : { prompt: attempt.prompt.view },
++		...attempt.error === void 0 ? {} : { error: attempt.error }
++	});
++	const authorizationMissing = () => ({
++		code: "internal",
++		message: "authorization service is absent: this deployment does not mount @deepseek-ai/dsh-authorization",
++		details: {}
++	});
++	const authorizationAttemptMissing = (attemptId) => ({
++		code: "bad-request",
++		message: `unknown authorization attempt "${attemptId}"`,
++		details: {}
++	});
+ 	const muxQueues = /* @__PURE__ */ new Set();
+ 	const imageAdmissionChains = /* @__PURE__ */ new WeakMap();
+ 	/** Serialize image admission with model selection for one agent. */
+@@ -3469,6 +3487,77 @@
+ 				return ok(request, {});
+ 			}
+ 		},
++		authorization: {
++			list(request) {
++				const authorization = ctx.get("authorization");
++				if (authorization === void 0) return Promise.resolve(err(request, authorizationMissing()));
++				return Promise.resolve(ok(request, { flows: authorization.list() }));
++			},
++			async begin(request) {
++				const authorization = ctx.get("authorization");
++				if (authorization === void 0) return err(request, authorizationMissing());
++				const key = parseCredentialKey(request.payload.key);
++				const attemptId = randomUUID();
++				const attempt = { attemptId, key, status: "running", notices: [] };
++				authorizationAttempts.set(attemptId, attempt);
++				const interaction = {
++					notify: (notice) => {
++						if (attempt.status === "running") attempt.notices.push({ message: notice.message, ...notice.url === void 0 ? {} : { url: notice.url }, ...notice.code === void 0 ? {} : { code: notice.code } });
++					},
++					prompt: (prompt) => new Promise((resolve, reject) => {
++						const promptId = randomUUID();
++						const view = { id: promptId, kind: prompt.kind, message: prompt.message, ...prompt.placeholder === void 0 ? {} : { placeholder: prompt.placeholder }, ...prompt.options === void 0 ? {} : { options: prompt.options } };
++						const current = { view, resolve, reject };
++						attempt.prompt = current;
++						const onAbort = () => {
++							if (attempt.prompt !== current) return;
++							attempt.prompt = void 0;
++							reject(new Error("authorization prompt withdrawn"));
++						};
++						current.cleanup = () => prompt.signal?.removeEventListener("abort", onAbort);
++						prompt.signal?.addEventListener("abort", onAbort, { once: true });
++						if (prompt.signal?.aborted === true) onAbort();
++					})
++				};
++				void authorization.begin({ key, ...request.payload.method === void 0 ? {} : { method: request.payload.method }, interaction }).then((outcome) => {
++					attempt.status = outcome.status;
++				}).catch((error) => {
++					attempt.status = "failed";
++					attempt.error = error instanceof Error ? error.message : String(error);
++				}).finally(() => {
++					if (attempt.prompt !== void 0) {
++						attempt.prompt.cleanup?.();
++						attempt.prompt = void 0;
++					}
++				});
++				return ok(request, { attemptId });
++			},
++			status(request) {
++				const attempt = authorizationAttempts.get(request.payload.attemptId);
++				if (attempt === void 0) return Promise.resolve(err(request, authorizationAttemptMissing(request.payload.attemptId)));
++				return Promise.resolve(ok(request, authorizationView(attempt)));
++			},
++			answer(request) {
++				const attempt = authorizationAttempts.get(request.payload.attemptId);
++				if (attempt === void 0) return Promise.resolve(err(request, authorizationAttemptMissing(request.payload.attemptId)));
++				const prompt = attempt.prompt;
++				if (prompt === void 0 || prompt.view.id !== request.payload.promptId) return Promise.resolve(ok(request, { accepted: false }));
++				attempt.prompt = void 0;
++				prompt.cleanup?.();
++				prompt.resolve(request.payload.value);
++				return Promise.resolve(ok(request, { accepted: true }));
++			},
++			cancel(request) {
++				const attempt = authorizationAttempts.get(request.payload.attemptId);
++				if (attempt === void 0) return Promise.resolve(err(request, authorizationAttemptMissing(request.payload.attemptId)));
++				if (attempt.status === "running") {
++					ctx.get("authorization")?.cancel(attempt.key);
++					attempt.prompt?.reject(new Error("authorization cancelled"));
++					attempt.prompt = void 0;
++				}
++				return Promise.resolve(ok(request, { accepted: true }));
++			}
++		},
+ 		llm: {
+ 			providers(request) {
+ 				const registered = ctx.llm.listProviders();
+@@ -4451,6 +4540,30 @@
+ /** credentials.unset response value. */
+ const credentialsUnsetValueSchema = z$1.object({});
+ //#endregion
++//#region lib/types/api/authorization.schema.js
++const authorizationKeySchema = z$1.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*\/[a-z0-9]+(?:-[a-z0-9]+)*$/);
++const authorizationAttemptIdSchema = z$1.string().uuid();
++const authorizationPromptIdSchema = z$1.string().uuid();
++const authorizationPromptOptionSchema = z$1.object({ id: z$1.string().min(1), label: z$1.string().min(1), description: z$1.string().optional() });
++const authorizationPromptSchema = z$1.discriminatedUnion("kind", [
++	z$1.object({ id: authorizationPromptIdSchema, kind: z$1.literal("text"), message: z$1.string(), placeholder: z$1.string().optional() }),
++	z$1.object({ id: authorizationPromptIdSchema, kind: z$1.literal("secret"), message: z$1.string(), placeholder: z$1.string().optional() }),
++	z$1.object({ id: authorizationPromptIdSchema, kind: z$1.literal("select"), message: z$1.string(), options: z$1.array(authorizationPromptOptionSchema) })
++]);
++const authorizationNoticeSchema = z$1.object({ message: z$1.string(), url: z$1.string().optional(), code: z$1.string().optional() });
++const authorizationMethodSchema = z$1.object({ id: z$1.string().min(1), label: z$1.string().min(1) });
++const authorizationEntrySchema = z$1.object({ key: authorizationKeySchema, label: z$1.string().min(1), methods: z$1.array(authorizationMethodSchema), inFlight: z$1.boolean() });
++const authorizationListRequestSchema = z$1.object({});
++const authorizationListValueSchema = z$1.object({ flows: z$1.array(authorizationEntrySchema) });
++const authorizationBeginRequestSchema = z$1.object({ key: authorizationKeySchema, method: z$1.string().min(1).optional() });
++const authorizationBeginValueSchema = z$1.object({ attemptId: authorizationAttemptIdSchema });
++const authorizationStatusRequestSchema = z$1.object({ attemptId: authorizationAttemptIdSchema });
++const authorizationStatusValueSchema = z$1.object({ status: z$1.union([z$1.literal("running"), z$1.literal("authorized"), z$1.literal("cancelled"), z$1.literal("failed")]), notices: z$1.array(authorizationNoticeSchema), prompt: authorizationPromptSchema.optional(), error: z$1.string().optional() });
++const authorizationAnswerRequestSchema = z$1.object({ attemptId: authorizationAttemptIdSchema, promptId: authorizationPromptIdSchema, value: z$1.string() });
++const authorizationAnswerValueSchema = z$1.object({ accepted: z$1.boolean() });
++const authorizationCancelRequestSchema = z$1.object({ attemptId: authorizationAttemptIdSchema });
++const authorizationCancelValueSchema = z$1.object({ accepted: z$1.boolean() });
++//#endregion
+ //#region lib/types/api/llm.schema.js
+ /**
+ * llm domain zod schemas (names derived from map keys: llmProvidersRequestSchema /
+@@ -4770,6 +4883,26 @@
+ 		schema: credentialsUnsetRequestSchema,
+ 		invoke: (api, r) => api.credentials.unset(r)
+ 	},
++	"authorization.list": {
++		schema: authorizationListRequestSchema,
++		invoke: (api, r) => api.authorization.list(r)
++	},
++	"authorization.begin": {
++		schema: authorizationBeginRequestSchema,
++		invoke: (api, r) => api.authorization.begin(r)
++	},
++	"authorization.status": {
++		schema: authorizationStatusRequestSchema,
++		invoke: (api, r) => api.authorization.status(r)
++	},
++	"authorization.answer": {
++		schema: authorizationAnswerRequestSchema,
++		invoke: (api, r) => api.authorization.answer(r)
++	},
++	"authorization.cancel": {
++		schema: authorizationCancelRequestSchema,
++		invoke: (api, r) => api.authorization.cancel(r)
++	},
+ 	"llm.providers": {
+ 		schema: llmProvidersRequestSchema,
+ 		invoke: (api, r) => api.llm.providers(r)
+@@ -5195,6 +5328,11 @@
+ 	"credentials.describe": credentialsDescribeValueSchema,
+ 	"credentials.set": credentialsSetValueSchema,
+ 	"credentials.unset": credentialsUnsetValueSchema,
++	"authorization.list": authorizationListValueSchema,
++	"authorization.begin": authorizationBeginValueSchema,
++	"authorization.status": authorizationStatusValueSchema,
++	"authorization.answer": authorizationAnswerValueSchema,
++	"authorization.cancel": authorizationCancelValueSchema,
+ 	"llm.providers": llmProvidersValueSchema,
+ 	"llm.models": llmModelsValueSchema,
+ 	"llm.discoverModels": llmDiscoverModelsValueSchema
+@@ -5522,6 +5660,7 @@
+ 	agentPresets;
+ 	settings;
+ 	credentials;
++	authorization;
+ 	llm;
+ 	events;
+ 	downloads;
+@@ -5545,6 +5684,7 @@
+ 		this.agentPresets = api.agentPresets;
+ 		this.settings = api.settings;
+ 		this.credentials = api.credentials;
++		this.authorization = api.authorization;
+ 		this.llm = api.llm;
+ 		this.events = api.events;
+ 		this.downloads = api.downloads;

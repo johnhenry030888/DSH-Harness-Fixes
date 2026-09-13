@@ -1,0 +1,43 @@
+--- /tmp/bug004pristine/host/package/lib/types/fetch/client.js	1985-10-26 10:15:00.000000000 +0200
++++ /tmp/bug004src/host/package/lib/types/fetch/client.js	2026-09-12 21:59:17.751667040 +0200
+@@ -15,6 +15,7 @@
+ import { goalCreateValueSchema, goalEditValueSchema, goalPauseValueSchema, goalResumeValueSchema, goalCompleteValueSchema, goalClearValueSchema, } from "../api/goals.schema.js";
+ import { settingsDescribeValueSchema, settingsMutateValueSchema, settingsOpenDocumentValueSchema, settingsReplaceValueSchema, settingsUpdateValueSchema, } from "../api/settings.schema.js";
+ import { credentialsDescribeValueSchema, credentialsSetValueSchema, credentialsUnsetValueSchema, } from "../api/credentials.schema.js";
++import { authorizationAnswerValueSchema, authorizationBeginValueSchema, authorizationCancelValueSchema, authorizationListValueSchema, authorizationStatusValueSchema, } from "../api/authorization.schema.js";
+ import { llmDiscoverModelsValueSchema, llmModelsValueSchema, llmProvidersValueSchema } from "../api/llm.schema.js";
+ import { subagentHistoryValueSchema, subagentInterruptValueSchema, subagentListValueSchema, subagentPromptValueSchema, } from "../api/subagents.schema.js";
+ /**
+@@ -71,6 +72,11 @@
+     'credentials.describe': credentialsDescribeValueSchema,
+     'credentials.set': credentialsSetValueSchema,
+     'credentials.unset': credentialsUnsetValueSchema,
++    'authorization.list': authorizationListValueSchema,
++    'authorization.begin': authorizationBeginValueSchema,
++    'authorization.status': authorizationStatusValueSchema,
++    'authorization.answer': authorizationAnswerValueSchema,
++    'authorization.cancel': authorizationCancelValueSchema,
+     'llm.providers': llmProvidersValueSchema,
+     'llm.models': llmModelsValueSchema,
+     'llm.discoverModels': llmDiscoverModelsValueSchema,
+@@ -313,6 +319,13 @@
+         set: (payload, signal) => this.callUnary('credentials.set', payload, signal),
+         unset: (payload, signal) => this.callUnary('credentials.unset', payload, signal),
+     };
++    authorization = {
++        list: (payload, signal) => this.callUnary('authorization.list', payload, signal),
++        begin: (payload, signal) => this.callUnary('authorization.begin', payload, signal),
++        status: (payload, signal) => this.callUnary('authorization.status', payload, signal),
++        answer: (payload, signal) => this.callUnary('authorization.answer', payload, signal),
++        cancel: (payload, signal) => this.callUnary('authorization.cancel', payload, signal),
++    };
+     llm = {
+         providers: (payload, signal) => this.callUnary('llm.providers', payload, signal),
+         models: (payload, signal) => this.callUnary('llm.models', payload, signal),
+@@ -367,4 +380,4 @@
+         return new Error(reason);
+     return new Error('This operation was aborted');
+ }
+-//# sourceMappingURL=client.js.map
+\ No newline at end of file
++//# sourceMappingURL=client.js.map

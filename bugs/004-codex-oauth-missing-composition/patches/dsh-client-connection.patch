@@ -1,0 +1,73 @@
+--- /tmp/bug004pristine/client/package/lib/client.js	1985-10-26 10:15:00.000000000 +0200
++++ /tmp/bug004src/client/package/lib/client.js	2026-09-12 22:00:42.671023224 +0200
+@@ -5951,6 +5951,25 @@
+ 		/** credentials.unset response value. */
+ 		const credentialsUnsetValueSchema = object({});
+ 		//#endregion
++		//#region ../../host/apiproxy/lib/types/api/authorization.schema.js
++		const authorizationKeySchema = string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*\/[a-z0-9]+(?:-[a-z0-9]+)*$/);
++		const authorizationAttemptIdSchema = string().uuid();
++		const authorizationPromptIdSchema = string().uuid();
++		const authorizationPromptOptionSchema = object({ id: string().min(1), label: string().min(1), description: string().optional() });
++		const authorizationPromptSchema = discriminatedUnion("kind", [
++			object({ id: authorizationPromptIdSchema, kind: literal("text"), message: string(), placeholder: string().optional() }),
++			object({ id: authorizationPromptIdSchema, kind: literal("secret"), message: string(), placeholder: string().optional() }),
++			object({ id: authorizationPromptIdSchema, kind: literal("select"), message: string(), options: array(authorizationPromptOptionSchema) })
++		]);
++		const authorizationNoticeSchema = object({ message: string(), url: string().optional(), code: string().optional() });
++		const authorizationMethodSchema = object({ id: string().min(1), label: string().min(1) });
++		const authorizationEntrySchema = object({ key: authorizationKeySchema, label: string().min(1), methods: array(authorizationMethodSchema), inFlight: boolean() });
++		const authorizationListValueSchema = object({ flows: array(authorizationEntrySchema) });
++		const authorizationBeginValueSchema = object({ attemptId: authorizationAttemptIdSchema });
++		const authorizationStatusValueSchema = object({ status: union([literal("running"), literal("authorized"), literal("cancelled"), literal("failed")]), notices: array(authorizationNoticeSchema), prompt: authorizationPromptSchema.optional(), error: string().optional() });
++		const authorizationAnswerValueSchema = object({ accepted: boolean() });
++		const authorizationCancelValueSchema = object({ accepted: boolean() });
++		//#endregion
+ 		//#region ../../host/apiproxy/lib/types/api/llm.schema.js
+ 		/**
+ 		* llm domain zod schemas (names derived from map keys: llmProvidersRequestSchema /
+@@ -6116,6 +6135,11 @@
+ 			"credentials.describe": credentialsDescribeValueSchema,
+ 			"credentials.set": credentialsSetValueSchema,
+ 			"credentials.unset": credentialsUnsetValueSchema,
++			"authorization.list": authorizationListValueSchema,
++			"authorization.begin": authorizationBeginValueSchema,
++			"authorization.status": authorizationStatusValueSchema,
++			"authorization.answer": authorizationAnswerValueSchema,
++			"authorization.cancel": authorizationCancelValueSchema,
+ 			"llm.providers": llmProvidersValueSchema,
+ 			"llm.models": llmModelsValueSchema,
+ 			"llm.discoverModels": llmDiscoverModelsValueSchema
+@@ -6343,6 +6367,13 @@
+ 				set: (payload, signal) => this.callUnary("credentials.set", payload, signal),
+ 				unset: (payload, signal) => this.callUnary("credentials.unset", payload, signal)
+ 			};
++			authorization = {
++				list: (payload, signal) => this.callUnary("authorization.list", payload, signal),
++				begin: (payload, signal) => this.callUnary("authorization.begin", payload, signal),
++				status: (payload, signal) => this.callUnary("authorization.status", payload, signal),
++				answer: (payload, signal) => this.callUnary("authorization.answer", payload, signal),
++				cancel: (payload, signal) => this.callUnary("authorization.cancel", payload, signal)
++			};
+ 			llm = {
+ 				providers: (payload, signal) => this.callUnary("llm.providers", payload, signal),
+ 				models: (payload, signal) => this.callUnary("llm.models", payload, signal),
+@@ -10053,6 +10084,11 @@
+ 					case "credentials.describe": return this.api.credentials.describe(request);
+ 					case "credentials.set": return this.api.credentials.set(request);
+ 					case "credentials.unset": return this.api.credentials.unset(request);
++					case "authorization.list": return ok(request, { flows: [] });
++					case "authorization.begin": return err(request, { code: "internal", message: "fixture authorization is unavailable", details: {} });
++					case "authorization.status": return err(request, { code: "internal", message: "fixture authorization is unavailable", details: {} });
++					case "authorization.answer": return err(request, { code: "internal", message: "fixture authorization is unavailable", details: {} });
++					case "authorization.cancel": return err(request, { code: "internal", message: "fixture authorization is unavailable", details: {} });
+ 					case "llm.providers": return this.api.llm.providers(request);
+ 					case "llm.models": return this.api.llm.models(request);
+ 					case "llm.discoverModels": return this.api.llm.discoverModels(request, signal);
+@@ -10324,4 +10360,4 @@
+ 	}
+ });
+ 
+-//# sourceMappingURL=client.js.map
+\ No newline at end of file
++//# sourceMappingURL=client.js.map
