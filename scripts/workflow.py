@@ -207,6 +207,7 @@ def default_workflow(
             MARKER,
         ],
         "required_gates": required_gates(marker, root),
+        "baseline_dirty": [],
         "gates": {},
         "commit": {"state": "pending", "hash": "", "evidence": ""},
         "push": {"state": "pending", "evidence": ""},
@@ -328,6 +329,7 @@ def cmd_start(root: Path, marker: dict[str, Any]) -> dict[str, Any]:
         record["gates"] = {}
         record["commit"] = {"state": "pending", "hash": "", "evidence": ""}
         record["push"] = {"state": "pending", "evidence": ""}
+        record["baseline_dirty"] = sorted(git_status_paths(root) or [])
         record["residual_risks"] = []
         record["retry"] = {"attempt": 0, "last_error": "", "resumable": True}
         record["state"] = "active"
@@ -338,6 +340,9 @@ def cmd_start(root: Path, marker: dict[str, Any]) -> dict[str, Any]:
         )
         save(root, marker, record)
         return {"ok": True, "action": "restart", "workflow": record}
+    stored_workflow = marker.get("workflow")
+    if not isinstance(stored_workflow, dict) or "baseline_dirty" not in stored_workflow:
+        record["baseline_dirty"] = sorted(git_status_paths(root) or [])
     record["state"] = "active"
     record["retry"]["resumable"] = True
     event(record, "start", {"stage": record["stage"]})
@@ -487,7 +492,7 @@ def git_ref(root: Path, ref: str) -> str:
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
-def git_clean(root: Path) -> bool:
+def git_status_paths(root: Path) -> set[str] | None:
     result = subprocess.run(
         ["git", "status", "--porcelain=v1", "--untracked-files=all"],
         cwd=root,
@@ -495,7 +500,24 @@ def git_clean(root: Path) -> bool:
         text=True,
         timeout=10,
     )
-    return result.returncode == 0 and not result.stdout.strip()
+    if result.returncode != 0:
+        return None
+    paths = set()
+    for line in result.stdout.splitlines():
+        if len(line) < 4:
+            continue
+        path = line[3:]
+        if " -> " in path:
+            paths.update(path.split(" -> ", 1))
+        else:
+            paths.add(path)
+    return paths
+
+
+def git_clean(root: Path, baseline_dirty: set[str] | None = None) -> bool:
+    baseline_dirty = baseline_dirty or set()
+    current = git_status_paths(root)
+    return current is not None and not current.difference(baseline_dirty)
 
 
 def upstream_matches_head(root: Path, head: str) -> bool:
@@ -539,7 +561,10 @@ def cmd_complete(
             "error": "commit evidence must identify the current HEAD",
             "resumable": True,
         }
-    if not git_clean(root):
+    baseline_dirty = record.get("baseline_dirty", [])
+    if not isinstance(baseline_dirty, list):
+        baseline_dirty = []
+    if not git_clean(root, set(baseline_dirty)):
         return {
             "ok": False,
             "error": "working tree must be clean before completion",
