@@ -26,8 +26,8 @@
   - [x] `./scripts/verify.sh` passes
   - [x] UI gates — N/A (harness bundle patches; no project UI files)
   - [x] visual baseline — N/A
-  - [x] checkpoint/commit (`git`)
-  - [x] push to origin — recorded below
+  - [x] checkpoint/commit (`git`) — `b8119d7` (all four fixes re-applied)
+  - [x] push to origin — `https://github.com/johnhenry030888/DSH-Harness-Fixes` accepted `c9da9f8..b8119d7` on `main`; pre-push hooks passed (secrets audit OK)
   - [x] update this file (every turn ends by updating it)
 - Open items: live browser OAuth round-trip against the real endpoints (see
   `bugs/004-codex-oauth-missing-composition/EVIDENCE.md`) should be run after
