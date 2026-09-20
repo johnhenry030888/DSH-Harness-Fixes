@@ -59,7 +59,10 @@ Checks run locally:
    `apply` mounts 16 contributions including the authorization one; all five
    descriptors pass the gateway's segment/id/wire/strict-codec rules; the
    `list` and `status` result schemas round-trip sample values and accept the
-   optional prompt/error fields.
+   optional prompt/error fields. Every contribution's `package` also passes the
+   Remote registry's name rule (nonempty, no `#`); an initial re-port used a
+   `#`-bearing package name and `dsh web` failed to apply the loader entry
+   (`typert: invalid Remote package name`), which this check now catches.
 6. UI bundle test (shimmed loader): bundle loads; `inject` includes
    `remote.authorization`; `apply` and `refreshIfLoaded` are exported.
 7. `scripts/check.sh` exit 0; `scripts/reapply.sh` is idempotent.

@@ -41,7 +41,7 @@
 +		const _deepseek_ai_dsh_api_settings_controller_authorization_answer_result$schema = object({ "accepted": boolean() });
 +		const _deepseek_ai_dsh_api_settings_controller_authorization_cancel_result$schema = object({ "accepted": boolean() });
 +		const TYPERT_REMOTE$15 = {
-+			package: "@deepseek-ai/dsh-api-settings-controller#authorization",
++			package: "@deepseek-ai/dsh-api-settings-controller/authorization",
 +			descriptors: [{
 +				id: "@deepseek-ai/dsh-api-settings-controller#authorization/list",
 +				service: "authorizationController",

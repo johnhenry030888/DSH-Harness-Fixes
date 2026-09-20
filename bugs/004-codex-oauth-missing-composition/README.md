@@ -85,7 +85,10 @@ token file or duplicate OpenAI endpoints.
 3. **Client transport.** The browser facade is data-driven from strict
    `TYPERT_REMOTE` descriptors, so `dsh-api-remotes/lib/client.js` gains a
    contribution (`TYPERT_REMOTE$15`) with the five authorization descriptors,
-   mounted as `ctx.remote.authorization`.
+   mounted as `ctx.remote.authorization`. Its `package` is
+   `@deepseek-ai/dsh-api-settings-controller/authorization`; the Remote
+   registry rejects `#` in a package name (only the invocation `id` may carry
+   it).
    Patch: `patches/dsh-api-remotes-authorization.patch`.
 
 4. **Models sign-in panel.** The Models settings page renders a subscription
