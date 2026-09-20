@@ -1,12 +1,12 @@
 --- /tmp/pristine/dsh-llm-pi-ai/lib/index.js
 +++ /home/john/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/index.js
-@@ -1607,6 +1607,17 @@
+@@ -1729,6 +1729,17 @@
  	};
  }
  /**
 +* Console Go (`opencode-go`, https://opencode.ai/zen/go/v1) requires
 +* `x-opencode-session` on every request (400 MissingSessionID otherwise).
-+* pi-ai 0.85.0 never emits it (openai-nosession compat sends only
++* pi-ai 0.85.x never emits it (the openai-nosession compat sends only
 +* x-client-request-id), so the DSH -> pi-ai bridge injects it here from the
 +* agent-loop session id. Scoped to opencode-go; other providers untouched.
 +*/
@@ -18,12 +18,12 @@
  * pi-ai-backed multi-provider adapter. Each operation reads the current
  * profiles, so a configuration change reaches the next request without a
  * restart; model descriptors come from the collection those profiles built.
-@@ -1741,7 +1752,7 @@
+@@ -1870,7 +1881,7 @@
  					...options.maxTokens === void 0 ? {} : { maxTokens: options.maxTokens },
  					...options.sessionId === void 0 ? {} : { sessionId: String(options.sessionId) },
  					signal: watchdog.signal,
 -					headers: requestHeaders(profile.headers)
 +					headers: { ...requestHeaders(profile.headers), ...opencodeSessionHeaders(options) }
- 				}), model.contextWindow)[Symbol.asyncIterator]();
+ 				}), model.contextWindow, options.signal, model.id)[Symbol.asyncIterator]();
  				let exhausted = false;
  				try {

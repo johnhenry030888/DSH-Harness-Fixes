@@ -1,14 +1,47 @@
 #!/bin/bash
 # Exit 0 = bug-004 fix present in the installed bundle, 1 = missing.
 set -u
-FILE="/home/john/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-base/cordis.patch.yml"
-HOST="/home/john/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-host-apiproxy/lib/index.js"
-CLIENT="/home/john/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-connection/lib/client.js"
-UI="/home/john/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-ui-settings-models/lib/client.js"
-SCHEMA="/home/john/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-host-apiproxy/lib/types/api/authorization.schema.js"
-if grep -q "id: authorization" "$FILE" 2>/dev/null && grep -q "name: '@deepseek-ai/dsh-authorization'" "$FILE" 2>/dev/null && grep -q '"authorization.list"' "$HOST" 2>/dev/null && grep -q '"authorization.answer"' "$HOST" 2>/dev/null && grep -q 'authorization = {' "$CLIENT" 2>/dev/null && grep -q 'Subscription sign-in' "$UI" 2>/dev/null && grep -q 'authorization-panel' "$UI" 2>/dev/null && grep -q 'firstOption' "$UI" 2>/dev/null && grep -q 'authorization-state' "$UI" 2>/dev/null && grep -q 'Step 1:' "$UI" 2>/dev/null && grep -q 'Waiting for sign-in.' "$UI" 2>/dev/null && test -f "$SCHEMA"; then
-  echo "bug-004 fix PRESENT"
-  exit 0
-fi
-echo "bug-004 fix MISSING"
-exit 1
+BASE="/home/john/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai"
+BASE_YML="$BASE/dsh-base/cordis.patch.yml"
+SETTINGS="$BASE/dsh-api-settings-controller/lib/index.js"
+REMOTES="$BASE/dsh-api-remotes/lib/client.js"
+UI="$BASE/dsh-client-ui-settings-models/lib/client.js"
+ok=0
+grep -qF "id: authorization" "$BASE_YML" 2>/dev/null || {
+  echo "missing: dsh-base authorization mount"
+  ok=1
+}
+grep -qF "@deepseek-ai/dsh-authorization" "$BASE_YML" 2>/dev/null || {
+  echo "missing: dsh-authorization plugin name"
+  ok=1
+}
+grep -qF "authorizationController" "$SETTINGS" 2>/dev/null || {
+  echo "missing: host AuthorizationController"
+  ok=1
+}
+grep -qF 'namespace: "authorization"' "$SETTINGS" 2>/dev/null || {
+  echo "missing: host authorization namespace"
+  ok=1
+}
+grep -qF "authorization/begin" "$REMOTES" 2>/dev/null || {
+  echo "missing: client authorization descriptors"
+  ok=1
+}
+grep -qF "TYPERT_REMOTE\$15" "$REMOTES" 2>/dev/null || {
+  echo "missing: client authorization contribution"
+  ok=1
+}
+grep -qF "AuthorizationPanel" "$UI" 2>/dev/null || {
+  echo "missing: subscription sign-in panel"
+  ok=1
+}
+grep -qF "authorizationTitle" "$UI" 2>/dev/null || {
+  echo "missing: sign-in copy"
+  ok=1
+}
+grep -qF '"remote.authorization"' "$UI" 2>/dev/null || {
+  echo "missing: remote.authorization injection"
+  ok=1
+}
+if [ "$ok" -eq 0 ]; then echo "bug-004 fix PRESENT"; else echo "bug-004 fix MISSING"; fi
+exit "$ok"

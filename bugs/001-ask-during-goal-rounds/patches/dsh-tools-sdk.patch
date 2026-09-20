@@ -1,15 +1,15 @@
---- /tmp/pristine/tools/package/lib/index.js	1985-10-26 10:15:00.000000000 +0200
-+++ /home/john/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-tools/lib/index.js	2026-09-05 23:50:50.155249697 +0200
-@@ -1596,7 +1596,7 @@
+--- /tmp/pristine/tools/package/lib/index.js
++++ /home/john/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-tools/lib/index.js
+@@ -1598,7 +1598,7 @@
  - Call tools as \`await tools.name(args)\` — quoted access for exotic names: \`tools["my-tool"](args)\`. Every call resolves to the tool's typed canonical JSON value. Tool arguments must be lossless JSON.
  - A FAILED tool call rejects with \`ToolCallError\`, whose \`toolName\` identifies the failed tool and whose \`message\` is human-readable — \`try/catch\` it to handle and continue.
  - Independent read-only calls MAY overlap under \`Promise.all\` (safe calls run concurrently; mutating calls run alone, in submission order). Sequence dependent work with \`await\`.
 -- Emit results with \`return\` and/or \`console.log(...)\`. Only what you print or return is program output. A successful tool result containing an image is attached after the run so you can inspect it on the next step; every other intermediate result stays out of the conversation, so extract just what you need.
 +- Emit results with \`return\` and/or \`console.log(...)\`. Only what you print or return is program output. A binding result reaches the model ONLY through this program\u2019s logs/return value \u2014 awaiting a binding and returning a constant discards its result, so return or log every answer you need (e.g. return the question answer, not a fixed string). A successful tool result containing an image is attached after the run so you can inspect it on the next step; every other intermediate result stays out of the conversation, so extract just what you need.
  
- The available tools:`;
- /**
-@@ -2292,7 +2292,7 @@
+ Program-only SDK bindings:`;
+ /** Whether one string schema accepts the literal used by the bash example. */
+@@ -2312,7 +2312,7 @@
  - Call tools as \`await tools.name(args)\` — subscript access for exotic, reserved, or underscore-leading names: \`await tools["my-tool"](args)\`. Every call resolves to the tool's typed canonical JSON value (each method's return type below). Tool arguments must be lossless JSON.
  - A FAILED tool call raises \`ToolCallError\`, whose \`toolName\` identifies the failed tool and whose message is human-readable — wrap in \`try/except\` to handle and continue.
  - Independent read-only calls MAY overlap under \`asyncio.gather\` (safe calls run concurrently; mutating calls run alone, in submission order). Sequence dependent work with \`await\`.

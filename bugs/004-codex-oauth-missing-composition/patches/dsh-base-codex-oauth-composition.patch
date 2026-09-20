@@ -1,6 +1,6 @@
 --- /tmp/pristine/dsh-base/cordis.patch.yml
 +++ /home/john/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-base/cordis.patch.yml
-@@ -85,6 +85,12 @@
+@@ -97,6 +97,12 @@
      - id: credentials
        name: '@deepseek-ai/dsh-credentials-local'
  

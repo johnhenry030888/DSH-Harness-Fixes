@@ -1,5 +1,5 @@
---- /tmp/pristine/driver/package/lib/index.js	1985-10-26 10:15:00.000000000 +0200
-+++ /home/john/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-goal-round-driver/lib/index.js	2026-09-05 23:50:26.266281873 +0200
+--- /tmp/pristine/driver/package/lib/index.js
++++ /home/john/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-goal-round-driver/lib/index.js
 @@ -51,6 +51,8 @@
  function renderThrown(value) {
  	return value instanceof Error ? value.message : String(value);
@@ -64,13 +64,13 @@
  		});
 @@ -221,6 +248,7 @@
  				const goal = currentGoal(state);
- 				if ((attempt?.phase === "queued" || attempt?.phase === "claimed" || attempt?.cancelled) && goal?.phase === "active" && goal.activation === "armed") {
+ 				if (attempt !== void 0 && (attempt.phase === "queued" || attempt.phase === "claimed" || attempt.cancelled) && goal !== void 0 && goal.phase === "active" && goal.activation === "armed" && attempt.goalId === goal.id && attempt.revision === goal.revision) {
  					state.attempt = void 0;
 +					clearAskGuard(state);
  					try {
  						ctx.goals.pause(agent, goalRef(goal));
  					} catch (error) {
-@@ -243,14 +271,23 @@
+@@ -244,14 +272,23 @@
  			if (attempt !== void 0 && sameQueued(message.content, message.source, attempt)) return;
  			state.competingQueued = true;
  			if (attempt?.phase === "queued") attempt.stale = true;
@@ -98,7 +98,7 @@
  		});
  		ctx.on("session/event", (session, event) => {
  			const agent = ctx.agents.get(session.id);
-@@ -258,9 +295,13 @@
+@@ -259,9 +296,13 @@
  			const state = stateFor(agent);
  			switch (event.type) {
  				case "user/message":
@@ -113,7 +113,7 @@
  					if (event.data.reason.kind === "max-tokens") {
  						disarm(state);
  						return;
-@@ -295,6 +336,7 @@
+@@ -296,6 +337,7 @@
  				if (attempt !== void 0 && sameRound(source, attempt)) {
  					attempt.stale = true;
  					state.attempt = void 0;
@@ -121,7 +121,7 @@
  				}
  				restoreOtherClaimed(agent, messages, submitted.id);
  				requestDrive(state);
-@@ -306,6 +348,7 @@
+@@ -307,6 +349,7 @@
  			} catch (error) {
  				if (signal.aborted) throw error;
  				state.attempt = void 0;
@@ -129,7 +129,7 @@
  				requestDrive(state);
  				throw error;
  			}
-@@ -315,6 +358,7 @@
+@@ -316,6 +359,7 @@
  			}
  			if (decision.kind === "reject") {
  				state.attempt = void 0;
@@ -137,7 +137,7 @@
  				const goal = currentGoal(state);
  				if (goal !== void 0 && goal.id === source.goalId && goal.revision === source.revision && goal.phase === "active" && goal.activation === "armed") ctx.goals.block(agent, goalRef(goal), {
  					code: "prompt-rejected",
-@@ -331,6 +375,7 @@
+@@ -332,6 +376,7 @@
  			}
  			if (!valid) {
  				state.attempt = void 0;
@@ -145,7 +145,7 @@
  				restoreOtherClaimed(agent, decision.messages, submitted.id);
  				requestDrive(state);
  				return { kind: "reject" };
-@@ -343,6 +388,7 @@
+@@ -347,6 +392,7 @@
  			for (const state of states.values()) {
  				state.stopping = true;
  				disarm(state);

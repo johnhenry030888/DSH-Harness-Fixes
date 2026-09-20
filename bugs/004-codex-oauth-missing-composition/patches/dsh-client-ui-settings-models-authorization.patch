@@ -1,0 +1,299 @@
+--- /tmp/pristine/dsh-client-ui-settings-models/lib/client.js
++++ /home/john/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-ui-settings-models/lib/client.js
+@@ -2745,7 +2745,17 @@
+ 			onboardingLater: "Configure later",
+ 			onboardingSave: "Save and continue",
+ 			onboardingSaving: "Saving…",
+-			keyRequired: "Enter an API key to continue."
++			keyRequired: "Enter an API key to continue.",
++			authorizationTitle: "Subscription sign-in",
++			authorizationIntro: "Sign in with a provider subscription instead of an API key. Credentials are stored by the harness and refreshed automatically.",
++			authorizationWaiting: "Waiting for sign-in…",
++			authorizationDone: "Signed in.",
++			authorizationCancelled: "Sign-in was cancelled.",
++			authorizationFailed: "Sign-in failed.",
++			authorizationSubmit: "Continue",
++			authorizationCancel: "Cancel",
++			authorizationOpen: "Open page",
++			authorizationAnswerRejected: "That answer was no longer expected. Waiting for the next step…"
+ 		};
+ 		/** Chinese strings (same keys as {@link en}). */
+ 		const zh = {
+@@ -2848,9 +2858,252 @@
+ 			onboardingLater: "稍后配置",
+ 			onboardingSave: "保存并继续",
+ 			onboardingSaving: "保存中…",
+-			keyRequired: "请输入 API 密钥后继续。"
++			keyRequired: "请输入 API 密钥后继续。",
++			authorizationTitle: "订阅登录",
++			authorizationIntro: "使用提供方订阅登录，无需 API 密钥。凭证由 harness 存储并自动刷新。",
++			authorizationWaiting: "等待登录…",
++			authorizationDone: "已登录。",
++			authorizationCancelled: "登录已取消。",
++			authorizationFailed: "登录失败。",
++			authorizationSubmit: "继续",
++			authorizationCancel: "取消",
++			authorizationOpen: "打开页面",
++			authorizationAnswerRejected: "该回答已不再需要，正在等待下一步…"
+ 		};
+ 		//#endregion
++		//#region lib/types/client/AuthorizationPanel.js
++		/**
++		* Subscription sign-in panel: lists the authorization flows the host
++		* registers (the pi-ai Codex OAuth flow among them), starts an attempt,
++		* polls its notices and prompt, sends answers, and cancels. The panel never
++		* sees an access token, refresh token, authorization code, or credential
++		* record; the host owns the protocol and the credential write.
++		* @param props - the page context and bound translator.
++		* @returns the sign-in card, or null when no flow is registered.
++		*/
++		function AuthorizationPanel(props) {
++			const { ctx, t } = props;
++			const css = ModelsSection_module_css_default;
++			const [flows, setFlows] = (0, react.useState)(null);
++			const [attempt, setAttempt] = (0, react.useState)(null);
++			const [answer, setAnswer] = (0, react.useState)("");
++			const [busy, setBusy] = (0, react.useState)(false);
++			const [failure, setFailure] = (0, react.useState)(null);
++			const refresh = (0, react.useCallback)(async () => {
++				const authorization = ctx.remote.authorization;
++				if (authorization === void 0) return;
++				const result = await authorization.list();
++				if (result.ok) setFlows(result.value.flows);
++				else setFailure(result.error.message);
++			}, [ctx]);
++			(0, react.useEffect)(() => {
++				refresh();
++			}, [refresh]);
++			const attemptId = attempt === null ? void 0 : attempt.attemptId;
++			const attemptStatus = attempt === null ? void 0 : attempt.status;
++			(0, react.useEffect)(() => {
++				if (attemptId === void 0 || attemptStatus !== "running") return;
++				let cancelled = false;
++				const timer = setInterval(async () => {
++					const authorization = ctx.remote.authorization;
++					if (authorization === void 0) return;
++					const result = await authorization.status(attemptId);
++					if (cancelled) return;
++					if (result.ok) {
++						setAttempt((current) => current === null || current.attemptId !== attemptId ? current : {
++							...current,
++							...result.value
++						});
++						if (result.value.status !== "running") refresh();
++					} else {
++						setFailure(result.error.message);
++						setAttempt(null);
++					}
++				}, 1000);
++				return () => {
++					cancelled = true;
++					clearInterval(timer);
++				};
++			}, [attemptId, attemptStatus, ctx, refresh]);
++			const prompt = attempt === null ? void 0 : attempt.prompt;
++			const promptId = prompt === void 0 ? void 0 : prompt.id;
++			const promptKind = prompt === void 0 ? void 0 : prompt.kind;
++			const optionIds = prompt === void 0 || prompt.options === void 0 ? "" : prompt.options.map((option) => option.id).join("|");
++			(0, react.useEffect)(() => {
++				if (promptKind !== "select" || prompt === void 0 || prompt.options === void 0) return;
++				if (prompt.options.some((option) => option.id === answer)) return;
++				setAnswer(prompt.options.length === 0 ? "" : prompt.options[0].id);
++			}, [promptKind, promptId, optionIds, answer]);
++			const start = async (flow, method) => {
++				const authorization = ctx.remote.authorization;
++				if (authorization === void 0) return;
++				setFailure(null);
++				setBusy(true);
++				const result = await authorization.begin(flow.key, method);
++				setBusy(false);
++				if (result.ok) {
++					setAnswer("");
++					setAttempt({
++						attemptId: result.value.attemptId,
++						flowKey: flow.key,
++						status: "running",
++						notices: [],
++						prompt: void 0,
++						error: void 0
++					});
++				} else setFailure(result.error.message);
++			};
++			const submitAnswer = async () => {
++				const authorization = ctx.remote.authorization;
++				if (authorization === void 0 || attempt === null || attempt.prompt === void 0) return;
++				setBusy(true);
++				const result = await authorization.answer(attempt.attemptId, attempt.prompt.id, answer);
++				setBusy(false);
++				if (result.ok && result.value.accepted) {
++					setAnswer("");
++					setAttempt({
++						...attempt,
++						prompt: void 0
++					});
++				} else setFailure(t("authorizationAnswerRejected"));
++			};
++			const cancel = async () => {
++				const authorization = ctx.remote.authorization;
++				if (authorization === void 0 || attempt === null) return;
++				await authorization.cancel(attempt.attemptId);
++				setAttempt(null);
++				setAnswer("");
++				refresh();
++			};
++			if (flows === null || flows.length === 0) return null;
++			const statusLabel = (status) => status === "running" ? t("authorizationWaiting") : status === "authorized" ? t("authorizationDone") : status === "cancelled" ? t("authorizationCancelled") : t("authorizationFailed");
++			const rows = flows.map((flow) => {
++				const active = attempt !== null && attempt.flowKey === flow.key;
++				const running = active && attempt.status === "running";
++				const body = !active ? null : (0, react_jsx_runtime.jsxs)("div", {
++					className: css.field,
++					children: [
++						(0, react_jsx_runtime.jsx)("p", {
++							className: css.notice,
++							children: statusLabel(attempt.status)
++						}),
++						attempt.error === void 0 ? null : (0, react_jsx_runtime.jsx)("p", {
++							className: css.error,
++							role: "alert",
++							children: attempt.error
++						}),
++						attempt.notices.length === 0 ? null : (0, react_jsx_runtime.jsx)("ul", {
++							className: css.rows,
++							children: attempt.notices.map((notice, index) => (0, react_jsx_runtime.jsxs)("li", {
++								children: [
++									(0, react_jsx_runtime.jsx)("span", { children: notice.message }),
++									notice.code === void 0 ? null : (0, react_jsx_runtime.jsxs)("span", { children: [" ", (0, react_jsx_runtime.jsx)("code", { children: notice.code })] }),
++									notice.url === void 0 ? null : (0, react_jsx_runtime.jsxs)("span", { children: [" ", (0, react_jsx_runtime.jsx)("a", {
++										className: css.linkButton,
++										href: notice.url,
++										target: "_blank",
++										rel: "noreferrer",
++										children: t("authorizationOpen")
++									})] })
++								]
++							}, index))
++						}),
++						attempt.prompt === void 0 ? null : (0, react_jsx_runtime.jsxs)("div", {
++							className: css.field,
++							children: [
++								(0, react_jsx_runtime.jsx)("label", {
++									className: css.fieldLabel,
++									children: attempt.prompt.message
++								}),
++								attempt.prompt.kind === "select" ? (0, react_jsx_runtime.jsx)("select", {
++									className: css.selectInput,
++									value: answer,
++									onChange: (event) => {
++										setAnswer(event.target.value);
++									},
++									children: (attempt.prompt.options ?? []).map((option) => (0, react_jsx_runtime.jsx)("option", {
++										value: option.id,
++										children: option.label
++									}, option.id))
++								}) : (0, react_jsx_runtime.jsx)("input", {
++									className: css.input,
++									type: attempt.prompt.kind === "secret" ? "password" : "text",
++									value: answer,
++									placeholder: attempt.prompt.placeholder ?? "",
++									onChange: (event) => {
++										setAnswer(event.target.value);
++									}
++								}),
++								(0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
++									variant: "primary",
++									disabled: busy,
++									onClick: () => {
++										submitAnswer();
++									},
++									children: t("authorizationSubmit")
++								})
++							]
++						}),
++						running ? (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
++							variant: "outline",
++							onClick: () => {
++								cancel();
++							},
++							children: t("authorizationCancel")
++						}) : null
++					]
++				});
++				return (0, react_jsx_runtime.jsxs)("li", {
++					className: css.rowCard,
++					children: [
++						(0, react_jsx_runtime.jsxs)("div", {
++							className: css.rowHead,
++							children: [
++								(0, react_jsx_runtime.jsx)("span", {
++									className: css.rowName,
++									children: flow.label
++								}),
++								(0, react_jsx_runtime.jsx)("div", {
++									className: css.rowActions,
++									children: flow.methods.map((method) => (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
++										variant: "outline",
++										disabled: busy || running,
++										onClick: () => {
++											start(flow, method.id);
++										},
++										children: method.label
++									}, method.id))
++								})
++							]
++						}),
++						body
++					]
++				}, flow.key);
++			});
++			return (0, react_jsx_runtime.jsxs)("section", {
++				className: css.section,
++				children: [
++					(0, react_jsx_runtime.jsx)("h3", {
++						className: css.title,
++						children: t("authorizationTitle")
++					}),
++					(0, react_jsx_runtime.jsx)("p", {
++						className: css.intro,
++						children: t("authorizationIntro")
++					}),
++					failure === null ? null : (0, react_jsx_runtime.jsx)("p", {
++						className: css.error,
++						role: "alert",
++						children: failure
++					}),
++					(0, react_jsx_runtime.jsx)("ul", {
++						className: css.rows,
++						children: rows
++					})
++				]
++			});
++		}
++		//#endregion
+ 		//#region lib/types/client/index.js
+ 		/** Dictionary namespace owned by this plugin. */
+ 		const NS = "settings.models";
+@@ -2875,6 +3128,7 @@
+ 			"remote.credentials",
+ 			"remote.llm",
+ 			"remote.settings",
++			"remote.authorization",
+ 			"settingsScope",
+ 			"settingsSchema"
+ 		];
+@@ -2962,6 +3216,15 @@
+ 				order: 0,
+ 				inject: deepSeekOnboardingInjected
+ 			}, DeepSeekOnboardingDialog));
++			ctx.slots.inject("settings.models.footer", () => ctx.slots.register({
++				name: "settings.models.footer",
++				id: "authorization",
++				order: 0,
++				inject: () => ({
++					ctx,
++					t
++				})
++			}, AuthorizationPanel));
+ 		}
+ 		//#endregion
+ 		exports.apply = apply;

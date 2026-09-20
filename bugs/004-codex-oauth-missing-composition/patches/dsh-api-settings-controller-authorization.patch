@@ -1,0 +1,284 @@
+--- /tmp/pristine/dsh-api-settings-controller/lib/index.js
++++ /home/john/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-api-settings-controller/lib/index.js
+@@ -4,6 +4,7 @@
+ import { Remote, RemoteError, TypertRemoteService } from "@deepseek-ai/dsh-typert-protocol";
+ import { z } from "zod";
+ import { credentialRef } from "@deepseek-ai/dsh-credentials";
++import { randomUUID } from "node:crypto";
+ //#region lib/types/credentials.js
+ /**
+ * Host owner of the `credentials` Remote namespace: the reference half of
+@@ -212,6 +213,259 @@
+ 	};
+ })();
+ //#endregion
++//#region lib/types/authorization.js
++/**
++* Host owner of the `authorization` Remote namespace: the request/response
++* bridge between a browser configuration surface and the `ctx.authorization`
++* seam's interactive flows.
++*
++* An OAuth browser login waits on a local callback while the page stays
++* responsive, so `begin` starts a background attempt and returns an id; the
++* page polls `status` for the attempt's bounded notices and current prompt,
++* `answer` supplies one prompt answer, and `cancel` withdraws the attempt.
++* No method returns an access token, refresh token, authorization code, or
++* credential record: pi-ai owns the protocol and writes the grant through the
++* credential service.
++*
++* @module @deepseek-ai/dsh-api-settings-controller/src/authorization.ts
++*/
++let AuthorizationController = (() => {
++	let _classSuper = TypertRemoteService;
++	let _instanceExtraInitializers = [];
++	let _list_decorators;
++	let _begin_decorators;
++	let _status_decorators;
++	let _answer_decorators;
++	let _cancel_decorators;
++	return class AuthorizationController extends _classSuper {
++		static {
++			const _metadata = typeof Symbol === "function" && Symbol.metadata ? Object.create(_classSuper[Symbol.metadata] ?? null) : void 0;
++			_list_decorators = [Remote];
++			_begin_decorators = [Remote];
++			_status_decorators = [Remote];
++			_answer_decorators = [Remote];
++			_cancel_decorators = [Remote];
++			__esDecorate$1(this, null, _list_decorators, {
++				kind: "method",
++				name: "list",
++				static: false,
++				private: false,
++				access: {
++					has: (obj) => "list" in obj,
++					get: (obj) => obj.list
++				},
++				metadata: _metadata
++			}, null, _instanceExtraInitializers);
++			__esDecorate$1(this, null, _begin_decorators, {
++				kind: "method",
++				name: "begin",
++				static: false,
++				private: false,
++				access: {
++					has: (obj) => "begin" in obj,
++					get: (obj) => obj.begin
++				},
++				metadata: _metadata
++			}, null, _instanceExtraInitializers);
++			__esDecorate$1(this, null, _status_decorators, {
++				kind: "method",
++				name: "status",
++				static: false,
++				private: false,
++				access: {
++					has: (obj) => "status" in obj,
++					get: (obj) => obj.status
++				},
++				metadata: _metadata
++			}, null, _instanceExtraInitializers);
++			__esDecorate$1(this, null, _answer_decorators, {
++				kind: "method",
++				name: "answer",
++				static: false,
++				private: false,
++				access: {
++					has: (obj) => "answer" in obj,
++					get: (obj) => obj.answer
++				},
++				metadata: _metadata
++			}, null, _instanceExtraInitializers);
++			__esDecorate$1(this, null, _cancel_decorators, {
++				kind: "method",
++				name: "cancel",
++				static: false,
++				private: false,
++				access: {
++					has: (obj) => "cancel" in obj,
++					get: (obj) => obj.cancel
++				},
++				metadata: _metadata
++			}, null, _instanceExtraInitializers);
++			if (_metadata) Object.defineProperty(this, Symbol.metadata, {
++				enumerable: true,
++				configurable: true,
++				writable: true,
++				value: _metadata
++			});
++		}
++		attempts = /* @__PURE__ */ new Map();
++		/** @param ctx - Host context where the authorization seam may be mounted. */
++		constructor(ctx) {
++			super(ctx, "authorizationController", { namespace: "authorization" });
++			__runInitializers$1(this, _instanceExtraInitializers);
++		}
++		/**
++		* List every registered flow so a surface can offer provider sign-in.
++		* @returns one entry per flow, without secrets.
++		*/
++		list() {
++			return { flows: this.provider().list().map((flow) => ({
++				key: String(flow.key),
++				label: flow.label,
++				methods: flow.methods.map((method) => ({
++					id: String(method.id),
++					label: method.label
++				})),
++				inFlight: flow.inFlight
++			})) };
++		}
++		/**
++		* Start one background attempt and return its id immediately, so a browser
++		* login can wait on its callback while the page keeps polling `status`.
++		* @param key - the flow's credential key, as returned by `list`.
++		* @param method - the sign-in method id; empty selects the flow's first method.
++		* @returns the opaque attempt id.
++		* @throws RemoteError when the seam is absent, the flow is unknown, or it offers no method.
++		*/
++		begin(key, method) {
++			const authorization = this.provider();
++			const flow = authorization.list().find((candidate) => String(candidate.key) === String(key));
++			if (flow === void 0) throw new RemoteError("gateway/bad-request", `no authorization flow is registered for "${String(key)}"`, { key: String(key) });
++			const methodId = method === void 0 || method === "" ? flow.methods[0]?.id : method;
++			if (methodId === void 0) throw new RemoteError("gateway/bad-request", `authorization flow for "${String(key)}" offers no sign-in method`, { key: String(key) });
++			const attemptId = randomUUID();
++			const attempt = {
++				attemptId,
++				key: flow.key,
++				status: "running",
++				notices: []
++			};
++			this.attempts.set(attemptId, attempt);
++			const interaction = {
++				notify: (notice) => {
++					if (attempt.status !== "running") return;
++					attempt.notices.push({
++						message: String(notice.message),
++						...notice.url === void 0 ? {} : { url: String(notice.url) },
++						...notice.code === void 0 ? {} : { code: String(notice.code) }
++					});
++				},
++				prompt: (prompt) => new Promise((resolve, reject) => {
++					const promptId = randomUUID();
++					const view = {
++						id: promptId,
++						kind: String(prompt.kind),
++						message: String(prompt.message),
++						...prompt.placeholder === void 0 ? {} : { placeholder: String(prompt.placeholder) },
++						...prompt.options === void 0 ? {} : { options: prompt.options.map((option) => ({
++							id: String(option.id),
++							label: String(option.label)
++						})) }
++					};
++					const current = {
++						view,
++						resolve,
++						reject
++					};
++					attempt.prompt = current;
++					const onAbort = () => {
++						if (attempt.prompt !== current) return;
++						attempt.prompt = void 0;
++						reject(new Error("authorization prompt withdrawn"));
++					};
++					current.cleanup = () => prompt.signal?.removeEventListener("abort", onAbort);
++					prompt.signal?.addEventListener("abort", onAbort, { once: true });
++					if (prompt.signal?.aborted === true) onAbort();
++				})
++			};
++			Promise.resolve(authorization.begin({
++				key: flow.key,
++				method: methodId,
++				interaction
++			})).then((outcome) => {
++				attempt.status = outcome.status;
++			}).catch((error) => {
++				attempt.status = "failed";
++				attempt.error = error instanceof Error ? error.message : String(error);
++			}).finally(() => {
++				if (attempt.prompt !== void 0) {
++					attempt.prompt.cleanup?.();
++					attempt.prompt = void 0;
++				}
++			});
++			return { attemptId };
++		}
++		/**
++		* Report one attempt's bounded notices and current prompt.
++		* @param attemptId - the id returned by `begin`.
++		* @returns the polled view a surface renders.
++		* @throws RemoteError when the attempt id is unknown.
++		*/
++		status(attemptId) {
++			const attempt = this.attempt(attemptId);
++			return {
++				status: attempt.status,
++				notices: attempt.notices.slice(-24),
++				...attempt.prompt === void 0 ? {} : { prompt: attempt.prompt.view },
++				...attempt.error === void 0 ? {} : { error: attempt.error }
++			};
++		}
++		/**
++		* Supply one prompt answer to the running attempt.
++		* @param attemptId - the id returned by `begin`.
++		* @param promptId - the id of the prompt being answered.
++		* @param value - the answer value.
++		* @returns whether a live prompt accepted the answer.
++		* @throws RemoteError when the attempt id is unknown.
++		*/
++		answer(attemptId, promptId, value) {
++			const attempt = this.attempt(attemptId);
++			const prompt = attempt.prompt;
++			if (prompt === void 0 || prompt.view.id !== promptId) return { accepted: false };
++			attempt.prompt = void 0;
++			prompt.cleanup?.();
++			prompt.resolve(value);
++			return { accepted: true };
++		}
++		/**
++		* Withdraw the attempt running for this id.
++		* @param attemptId - the id returned by `begin`.
++		* @returns whether the attempt was running when cancelled.
++		* @throws RemoteError when the attempt id is unknown.
++		*/
++		cancel(attemptId) {
++			const attempt = this.attempt(attemptId);
++			if (attempt.status === "running") {
++				this.ctx.get("authorization")?.cancel(attempt.key);
++				attempt.prompt?.reject(new Error("authorization cancelled"));
++				attempt.prompt = void 0;
++			}
++			return { accepted: true };
++		}
++		/** Resolve the optional seam or report how to supply it. */
++		provider() {
++			const authorization = this.ctx.get("authorization");
++			if (authorization === void 0) throw new RemoteError("gateway/internal", "authorization service is absent: this deployment does not mount @deepseek-ai/dsh-authorization", {});
++			return authorization;
++		}
++		/** Resolve one live attempt or report the id as unknown. */
++		attempt(attemptId) {
++			const attempt = this.attempts.get(attemptId);
++			if (attempt === void 0) throw new RemoteError("gateway/bad-request", `unknown authorization attempt "${String(attemptId)}"`, { attemptId: String(attemptId) });
++			return attempt;
++		}
++	};
++})();
++//#endregion
+ //#region lib/types/index.js
+ /**
+ * Host Remote owner for the configuration surfaces over the settings-domain
+@@ -414,6 +668,7 @@
+ 			this.openTextFile = internals.openTextFile ?? openNativeTextFile;
+ 			this.canOpenPath = internals.canOpenPath ?? (() => config.nativeOpen ?? (internals.openPath !== void 0 || canOpenNativePath()));
+ 			ctx.plugin(CredentialsController);
++			ctx.plugin(AuthorizationController);
+ 		}
+ 		/**
+ 		* Describe every registered namespace for a configuration page: redacted
+@@ -579,4 +834,4 @@
+ 	return new RemoteError("settings/rejected", messageOf(error), { ns }, { cause: error });
+ }
+ //#endregion
+-export { CredentialsController, SettingsController, SettingsController as default };
++export { AuthorizationController, CredentialsController, SettingsController, SettingsController as default };

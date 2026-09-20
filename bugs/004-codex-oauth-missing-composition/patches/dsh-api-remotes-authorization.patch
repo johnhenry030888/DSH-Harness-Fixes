@@ -1,0 +1,183 @@
+--- /tmp/pristine/dsh-api-remotes/lib/client.js
++++ /home/john/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-api-remotes/lib/client.js
+@@ -9628,6 +9628,170 @@
+ 			]
+ 		};
+ 		//#endregion
++		//#region ../settings-controller/lib/typert.remote-client.js (authorization)
++		const _deepseek_ai_dsh_api_settings_controller_authorization_flow$schema = object({
++			"key": string(),
++			"label": string(),
++			"methods": array(object({
++				"id": string(),
++				"label": string()
++			})),
++			"inFlight": boolean()
++		});
++		const _deepseek_ai_dsh_api_settings_controller_authorization_list_result$schema = object({ "flows": array(_deepseek_ai_dsh_api_settings_controller_authorization_flow$schema) });
++		const _deepseek_ai_dsh_api_settings_controller_authorization_notice$schema = object({
++			"message": string(),
++			"url": optional(string()),
++			"code": optional(string())
++		});
++		const _deepseek_ai_dsh_api_settings_controller_authorization_option$schema = object({
++			"id": string(),
++			"label": string()
++		});
++		const _deepseek_ai_dsh_api_settings_controller_authorization_prompt$schema = object({
++			"id": string(),
++			"kind": string(),
++			"message": string(),
++			"placeholder": optional(string()),
++			"options": optional(array(_deepseek_ai_dsh_api_settings_controller_authorization_option$schema))
++		});
++		const _deepseek_ai_dsh_api_settings_controller_authorization_status_result$schema = object({
++			"status": string(),
++			"notices": array(_deepseek_ai_dsh_api_settings_controller_authorization_notice$schema),
++			"prompt": optional(_deepseek_ai_dsh_api_settings_controller_authorization_prompt$schema),
++			"error": optional(string())
++		});
++		const _deepseek_ai_dsh_api_settings_controller_authorization_begin_result$schema = object({ "attemptId": string() });
++		const _deepseek_ai_dsh_api_settings_controller_authorization_answer_result$schema = object({ "accepted": boolean() });
++		const _deepseek_ai_dsh_api_settings_controller_authorization_cancel_result$schema = object({ "accepted": boolean() });
++		const TYPERT_REMOTE$15 = {
++			package: "@deepseek-ai/dsh-api-settings-controller#authorization",
++			descriptors: [{
++				id: "@deepseek-ai/dsh-api-settings-controller#authorization/list",
++				service: "authorizationController",
++				namespace: "authorization",
++				method: "list",
++				invocation: { kind: "direct" },
++				parameters: [],
++				result: {
++					mode: "strict",
++					typeSymbol: "@deepseek-ai/dsh-api-settings-controller#authorization/list:result",
++					schema: _deepseek_ai_dsh_api_settings_controller_authorization_list_result$schema
++				}
++			}, {
++				id: "@deepseek-ai/dsh-api-settings-controller#authorization/begin",
++				service: "authorizationController",
++				namespace: "authorization",
++				method: "begin",
++				invocation: { kind: "direct" },
++				parameters: [{
++					name: "key",
++					wire: "key",
++					source: "json",
++					codec: {
++						mode: "strict",
++						typeSymbol: "@deepseek-ai/dsh-api-settings-controller#authorization/begin:key",
++						schema: string()
++					}
++				}, {
++					name: "method",
++					wire: "method",
++					source: "json",
++					codec: {
++						mode: "strict",
++						typeSymbol: "@deepseek-ai/dsh-api-settings-controller#authorization/begin:method",
++						schema: string()
++					}
++				}],
++				result: {
++					mode: "strict",
++					typeSymbol: "@deepseek-ai/dsh-api-settings-controller#authorization/begin:result",
++					schema: _deepseek_ai_dsh_api_settings_controller_authorization_begin_result$schema
++				}
++			}, {
++				id: "@deepseek-ai/dsh-api-settings-controller#authorization/status",
++				service: "authorizationController",
++				namespace: "authorization",
++				method: "status",
++				invocation: { kind: "direct" },
++				parameters: [{
++					name: "attemptId",
++					wire: "attemptId",
++					source: "json",
++					codec: {
++						mode: "strict",
++						typeSymbol: "@deepseek-ai/dsh-api-settings-controller#authorization/status:attemptId",
++						schema: string()
++					}
++				}],
++				result: {
++					mode: "strict",
++					typeSymbol: "@deepseek-ai/dsh-api-settings-controller#authorization/status:result",
++					schema: _deepseek_ai_dsh_api_settings_controller_authorization_status_result$schema
++				}
++			}, {
++				id: "@deepseek-ai/dsh-api-settings-controller#authorization/answer",
++				service: "authorizationController",
++				namespace: "authorization",
++				method: "answer",
++				invocation: { kind: "direct" },
++				parameters: [{
++					name: "attemptId",
++					wire: "attemptId",
++					source: "json",
++					codec: {
++						mode: "strict",
++						typeSymbol: "@deepseek-ai/dsh-api-settings-controller#authorization/answer:attemptId",
++						schema: string()
++					}
++				}, {
++					name: "promptId",
++					wire: "promptId",
++					source: "json",
++					codec: {
++						mode: "strict",
++						typeSymbol: "@deepseek-ai/dsh-api-settings-controller#authorization/answer:promptId",
++						schema: string()
++					}
++				}, {
++					name: "value",
++					wire: "value",
++					source: "json",
++					codec: {
++						mode: "strict",
++						typeSymbol: "@deepseek-ai/dsh-api-settings-controller#authorization/answer:value",
++						schema: string()
++					}
++				}],
++				result: {
++					mode: "strict",
++					typeSymbol: "@deepseek-ai/dsh-api-settings-controller#authorization/answer:result",
++					schema: _deepseek_ai_dsh_api_settings_controller_authorization_answer_result$schema
++				}
++			}, {
++				id: "@deepseek-ai/dsh-api-settings-controller#authorization/cancel",
++				service: "authorizationController",
++				namespace: "authorization",
++				method: "cancel",
++				invocation: { kind: "direct" },
++				parameters: [{
++					name: "attemptId",
++					wire: "attemptId",
++					source: "json",
++					codec: {
++						mode: "strict",
++						typeSymbol: "@deepseek-ai/dsh-api-settings-controller#authorization/cancel:attemptId",
++						schema: string()
++					}
++				}],
++				result: {
++					mode: "strict",
++					typeSymbol: "@deepseek-ai/dsh-api-settings-controller#authorization/cancel:result",
++					schema: _deepseek_ai_dsh_api_settings_controller_authorization_cancel_result$schema
++				}
++			}]
++		};
++		//#endregion
+ 		//#region lib/types/client/index.js
+ 		/** Platform-neutral assembly of generated Host Remote contributions. */
+ 		/** Required service: the typed Client Remote contribution mount. */
+@@ -9655,7 +9819,8 @@
+ 					TYPERT_REMOTE$3,
+ 					TYPERT_REMOTE$2,
+ 					TYPERT_REMOTE$1,
+-					TYPERT_REMOTE
++					TYPERT_REMOTE,
++					TYPERT_REMOTE$15
+ 				]) disposers.push(await ctx.remote.$mount(contribution));
+ 			} catch (error) {
+ 				for (const dispose of disposers.reverse()) await dispose();
