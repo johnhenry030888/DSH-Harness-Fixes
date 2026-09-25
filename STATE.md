@@ -68,8 +68,8 @@
   - [x] `./scripts/check-all.sh` + `./scripts/verify.sh` + `audit-secrets.sh`
   - [x] UI gates — N/A (harness bundle patches; no project UI files)
   - [x] visual baseline — N/A
-  - [x] checkpoint/commit (`git`) — see commit below
-  - [x] push to origin — `https://github.com/johnhenry030888/DSH-Harness-Fixes`; pre-push hooks passed (secrets audit OK)
+  - [x] checkpoint/commit (`git`) — `c1418c3` (bugs 006-010 fixes + docs)
+  - [x] push to origin — `https://github.com/johnhenry030888/DSH-Harness-Fixes` accepted `0682a5b..c1418c3` on `main`; pre-push hooks passed (node/pytest/cargo/go/secrets all green)
   - [x] update this file (every turn ends by updating it)
 - Open items:
   - the running `dsh web` host still has the pre-006..010 bundle in memory; the
