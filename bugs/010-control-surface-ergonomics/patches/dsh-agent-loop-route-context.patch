@@ -1,0 +1,48 @@
+--- pristine/dsh-agent-loop/lib/index.js
++++ installed/dsh-agent-loop/lib/index.js
+@@ -1476,6 +1476,33 @@
+ 		exactIdentities.set(exactIdentity, id);
+ 	}
+ }
++/**
++* Render one agent's effective route for its runtime-context snapshot.
++*
++* The agent otherwise learns its own provider/model/effort only from prose
++* (a persona line) or by inferring from behavior; every drill asked and could
++* not answer. The pinned values come from the Agent options; the resolved
++* effort comes from the durable request header once a request has been
++* prepared, with the adapter-default marker distinguishing a model's default
++* from an explicitly pinned effort. Before the first request the effort is
++* genuinely unresolved, and the text says so instead of guessing.
++* @param agent - the agent whose snapshot is being assembled, if any.
++* @returns the model-facing route line, or `''` when no route is known.
++*/
++function renderAgentRoute(agent) {
++	if (agent === void 0) return "";
++	const options = agent.options;
++	const header = agent.session.requestHeader();
++	const config = header?.config;
++	const provider = options.provider ?? config?.provider;
++	const model = options.model ?? config?.model;
++	if (provider === void 0 && model === void 0) return "";
++	const sameRoute = config !== void 0 && config.provider === provider && config.model === model;
++	const pinnedEffort = options.reasoningEffort;
++	const effort = pinnedEffort ?? (sameRoute ? config.reasoningEffort : void 0);
++	const effortText = effort === void 0 ? "unresolved until the first request (the adapter default applies)" : pinnedEffort !== void 0 ? `"${effort}" (pinned)` : header?.adapterDefaults?.reasoningEffort === true ? `"${effort}" (adapter default)` : `"${effort}" (resolved)`;
++	return `This agent's effective route: provider "${provider ?? "unset"}", model "${model ?? "unset"}", reasoning effort ${effortText}.`;
++}
+ /** Concrete agent factory and driver service. */
+ var AgentLoop = class extends Service {
+ 	static inject = [
+@@ -1534,6 +1561,11 @@
+ 		ctx.systemPrompt.variable("provider", (context) => context.agent?.options.provider);
+ 		ctx.systemPrompt.variable("model", (context) => context.agent?.options.model);
+ 		ctx.systemPrompt.variable("cwd", (context) => context.agent?.session.header.cwd);
++		ctx.systemPrompt.context({
++			name: "agent:route",
++			order: ctx.systemPrompt.getContextOrder("AGENT_ROUTE"),
++			text: (context) => renderAgentRoute(context.agent)
++		});
+ 		for (const { id, sessionId, cwd, resumeSessionId, ...options } of this.config.agents) {
+ 			const meta = cwd === void 0 ? {} : { cwd };
+ 			if (resumeSessionId === void 0 || resumeSessionId === "") {

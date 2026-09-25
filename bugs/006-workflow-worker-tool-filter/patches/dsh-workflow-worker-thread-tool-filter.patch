@@ -1,0 +1,70 @@
+--- pristine/dsh-workflow-worker-thread/lib/index.js
++++ installed/dsh-workflow-worker-thread/lib/index.js
+@@ -265,6 +265,14 @@
+ 	meta;
+ 	parent;
+ 	provider;
++	/**
++	* The deployment-owned leaf policy every `agent()` in this run is started
++	* under. Passed through to `subagents.start()` as `toolFilter`, so a worker
++	* cannot outrank the same leaf policy direct-lane children run under. Never
++	* read from model-authored meta or script args: it is engine configuration,
++	* and the capability mask must not be script-selectable.
++	*/
++	toolFilter;
+ 	disposeGraceMs;
+ 	observer;
+ 	/** Settles exactly once with the run's outcome; never rejects. */
+@@ -295,13 +303,14 @@
+ 	inputSignal;
+ 	inputSignalAbort;
+ 	disposed;
+-	constructor(ctx, subagents, id, meta, parent, init, provider, disposeGraceMs, observer, signal) {
++	constructor(ctx, subagents, id, meta, parent, init, provider, toolFilter, disposeGraceMs, observer, signal) {
+ 		this.ctx = ctx;
+ 		this.subagents = subagents;
+ 		this.id = id;
+ 		this.meta = meta;
+ 		this.parent = parent;
+ 		this.provider = provider;
++		this.toolFilter = toolFilter;
+ 		this.disposeGraceMs = disposeGraceMs;
+ 		this.observer = observer;
+ 		this.result = new Promise((resolve) => {
+@@ -493,7 +502,8 @@
+ 				...request.provider !== void 0 || request.model !== void 0 ? { agentOptions: {
+ 					...request.provider !== void 0 ? { provider: request.provider } : {},
+ 					...request.model !== void 0 ? { model: request.model } : {}
+-				} } : {}
++				} } : {},
++				...this.toolFilter !== void 0 ? { toolFilter: this.toolFilter } : {}
+ 			});
+ 		} catch (error) {
+ 			const failure = this.childAdmissionFailure();
+@@ -852,11 +862,16 @@
+ 		maxTotalAgents: z.natural().min(1).default(1e3),
+ 		maxItemsPerCall: z.natural().min(1).default(4096),
+ 		syncTimeoutMs: z.natural().min(1).default(5e3),
+-		disposeGraceMs: z.natural().default(5e3)
++		disposeGraceMs: z.natural().default(5e3),
++		toolFilter: z.object({
++			allow: z.array(z.string()).default(void 0),
++			deny: z.array(z.string()).default(void 0)
++		}).default(void 0)
+ 	});
+ 	config;
+ 	constructor(ctx, config) {
+ 		super(ctx);
++		if (config.toolFilter !== void 0 && config.toolFilter.allow === void 0 && config.toolFilter.deny === void 0) throw new Error("workflow-worker-thread: `toolFilter` is configured but names neither `allow` nor `deny` — remove the key or fill the filter");
+ 		this.config = config;
+ 	}
+ 	/**
+@@ -893,7 +908,7 @@
+ 		};
+ 		const runCtx = this.ctx;
+ 		const subagents = runCtx.subagents;
+-		const workerRun = new WorkerRun(runCtx, subagents, id, meta, request.parent, init, subagentProvider, this.config.disposeGraceMs, {
++		const workerRun = new WorkerRun(runCtx, subagents, id, meta, request.parent, init, subagentProvider, this.config.toolFilter, this.config.disposeGraceMs, {
+ 			phase: (title) => {
+ 				this.emitWorkflowEvent("workflow/phase", info, title);
+ 			},

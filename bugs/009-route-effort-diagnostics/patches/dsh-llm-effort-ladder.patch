@@ -1,0 +1,36 @@
+--- pristine/dsh-llm/lib/index.js
++++ installed/dsh-llm/lib/index.js
+@@ -1610,6 +1610,19 @@
+ 	throw new LlmError(checked.reason === "empty" ? `${pkg}: the API key resolved from ${ref} is blank; set ${ref} to the raw key (the web Models page writes it) or export it in the launching environment` : `${pkg}: the API key resolved from ${ref} contains characters no HTTP header can carry; set ${ref} to the raw key alone (the web Models page writes it)`, INVALID_CREDENTIAL_CODE);
+ }
+ /**
++* Render the advertised reasoning-effort ladder for an unsupported-effort
++* diagnostic. The rejection is model-correctable only when the caller can see
++* what the model does accept; without the ladder the caller has to guess or
++* re-discover it through `list_subagent_models`.
++* @param reasoning - the model's reasoning metadata, absent when it advertises none.
++* @returns the supported effort ids with the default, or `none advertised`.
++*/
++function describeReasoningEfforts(reasoning) {
++	if (reasoning === void 0 || reasoning.efforts.length === 0) return "none advertised";
++	const ids = reasoning.efforts.map((effort) => effort.id).join(", ");
++	return reasoning.defaultEffort === void 0 ? ids : `${ids} (default: ${reasoning.defaultEffort})`;
++}
++/**
+ * Provider-wire adapter for the harness message and stream vocabulary. Register implementations
+ * with `ctx.llm.registerAdapter(providers, adapter)`. Every provider HTTP request must include
+ * `attributionHeaders()`; prove the headers are added in the wire request or library header hook. The direct-fetch
+@@ -2117,11 +2130,11 @@
+ 			const requested = defaulted.reasoningEffort;
+ 			let resolvedConfig = defaulted;
+ 			if (reasoning === void 0) {
+-				if (requested !== void 0) throw new LlmError(`provider "${config.provider}" model "${config.model}" does not support reasoning effort "${requested}"`, "UNSUPPORTED_REASONING_EFFORT");
++				if (requested !== void 0) throw new LlmError(`provider "${config.provider}" model "${config.model}" does not support reasoning effort "${requested}" — supported: ${describeReasoningEfforts(reasoning)}`, "UNSUPPORTED_REASONING_EFFORT");
+ 			} else {
+ 				const effective = requested ?? reasoning.defaultEffort;
+ 				if (effective !== void 0) {
+-					if (!reasoning.efforts.some((effort) => effort.id === effective)) throw new LlmError(`provider "${config.provider}" model "${config.model}" does not support reasoning effort "${effective}"`, "UNSUPPORTED_REASONING_EFFORT");
++					if (!reasoning.efforts.some((effort) => effort.id === effective)) throw new LlmError(`provider "${config.provider}" model "${config.model}" does not support reasoning effort "${effective}" — supported: ${describeReasoningEfforts(reasoning)}`, "UNSUPPORTED_REASONING_EFFORT");
+ 					if (requested !== effective) resolvedConfig = {
+ 						...defaulted,
+ 						reasoningEffort: effective

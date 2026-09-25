@@ -1,0 +1,82 @@
+--- pristine/dsh-subagent/lib/index.js
++++ installed/dsh-subagent/lib/index.js
+@@ -1,4 +1,4 @@
+-import { scopeTarget } from "@deepseek-ai/dsh-scope";
++import { scopeOf, scopeTarget } from "@deepseek-ai/dsh-scope";
+ import { assertObjectJsonSchema } from "@deepseek-ai/dsh-tools";
+ import { canonicalClientTimeZone } from "@deepseek-ai/dsh-util-time";
+ import { Remote, RemoteError, TypertRemoteService } from "@deepseek-ai/dsh-typert-protocol";
+@@ -535,11 +535,12 @@
+ * no preset sees an empty tool registry and none of its parent's prompt
+ * sections. Taking the parent as a parameter is what makes that omission
+ * unrepresentable at the call sites.
+-* @param childCtx - the child agent's scoped creation context.
+-* @param parent - the delegating parent whose composition the child joins.
+-* @param composition - the per-child persona and tool filter to install.
+-*/
+-function applyChildComposition(childCtx, parent, composition) {
++ * @param childCtx - the child agent's scoped creation context.
++ * @param parent - the delegating parent whose composition the child joins.
++ * @param composition - the per-child persona and tool filter to install.
++ * @param label - the child's durable id, for restriction diagnostics.
++ */
++function applyChildComposition(childCtx, parent, composition, label) {
+ 	childCtx.get("agentPresets")?.composeFrom(childCtx, parent.ctx);
+ 	childCtx.systemPrompt.context({
+ 		name: "subagent:delegation",
+@@ -551,7 +552,45 @@
+ 		order: childCtx.systemPrompt.getSectionOrder("DEPLOYMENT_PERSONA_PREFIX"),
+ 		text: composition.persona
+ 	});
+-	if (composition.toolFilter !== void 0) childCtx.tools.restrict(composition.toolFilter);
++	if (composition.toolFilter !== void 0) restrictChildTools(childCtx, composition.toolFilter, label);
++}
++/**
++* Apply one child's tool restriction without letting a stale or
++* scope-local name kill the child.
++*
++* `tools.restrict()` is strict on purpose — it rejects every name that is not
++* restrictable in this scope — but the delegation seam must not let one bad
++* name in a deployment filter take down every spawn (drill v3: two
++* non-restrictable names aborted all eleven delegation lanes, while route
++* validation still answered, so the outage was invisible to negative tests).
++* The names the child's own layer registers (its delegation tool and
++* `list_subagent_models` when model selection is enabled) are exempt from
++* restriction by design, so a filter naming them is dropped here with a
++* warning rather than fatal. Every name that remains is applied, so a filter
++* can never silently widen: an all-unknown `allow` list still restricts to
++* nothing, and an all-unknown `deny` list applies the empty remainder with a
++* loud warning instead of leaving the child unrestricted and quiet.
++* @param childCtx - the child agent's scoped creation context.
++* @param filter - the delegation row's configured restriction.
++* @param label - the child's durable id, for the warning.
++*/
++function restrictChildTools(childCtx, filter, label) {
++	const known = childCtx.tools.view(scopeOf(childCtx)).restrictableNames;
++	const dropped = [];
++	const keep = (names) => {
++		if (names === void 0) return void 0;
++		return names.filter((name) => {
++			if (known.has(name)) return true;
++			dropped.push(name);
++			return false;
++		});
++	};
++	const sanitized = {
++		...filter.allow === void 0 ? {} : { allow: keep(filter.allow) },
++		...filter.deny === void 0 ? {} : { deny: keep(filter.deny) }
++	};
++	if (dropped.length > 0) childCtx.logger.warn(`subagent: child ${label ?? "(unlabeled)"} toolFilter names ${dropped.length > 1 ? "tools" : "a tool"} that cannot be restricted in its scope (dropped from the filter): ${dropped.map((name) => `"${name}"`).join(", ")}; a child registers its own delegation tool and model-discovery tool in its own layer, and those names are exempt from restriction`);
++	childCtx.tools.restrict(sanitized);
+ }
+ /**
+ * Capture the policy to seed into one delegation. Call synchronously before
+@@ -1065,7 +1104,7 @@
+ 				child.session.append("subagent/descriptor", create.descriptor);
+ 				appendDelegatedPolicyOverrides(child.session, create.delegatedPolicies);
+ 			}
+-			applyChildComposition(childCtx, parent, inputs.composition);
++			applyChildComposition(childCtx, parent, inputs.composition, childId);
+ 		};
+ 		const observer = this.observeActivation(provider, childId, parent);
+ 		const handle = create === void 0 ? await this.ownerCtx.agents.resume({

@@ -1,0 +1,28 @@
+--- pristine/dsh-jobs-local/lib/index.js
++++ installed/dsh-jobs-local/lib/index.js
+@@ -2,6 +2,12 @@
+ import { AnonymousEntries, ScopedLayers, scopeOf } from "@deepseek-ai/dsh-scope";
+ import { deadline, timeoutOf } from "@deepseek-ai/dsh-timeout";
+ import { JobId, JobRegistry } from "@deepseek-ai/dsh-jobs";
++/**
++* A subagent/agent id as minted by the subagent runtime (`randomUUID`), used
++* only to teach the namespace split when a caller passes the wrong id to a
++* job tool. Job ids themselves are service-minted labels such as `bash-1`.
++*/
++const AGENT_ID_LIKE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+ //#region lib/types/index.js
+ /**
+ * Process-local provider for the background-job capability seam
+@@ -299,10 +305,10 @@
+ 		const scope = owner === void 0 ? void 0 : scopeOf(owner.ctx);
+ 		for (const layer of this.layers.chainLayers(scope)) yield* layer.listeners.values();
+ 	}
+-	/** Look up a job or fail loud. */
++	/** Look up a job or fail loud, teaching the agent/job namespace split on a UUID. */
+ 	expect(id) {
+ 		const job = this.store.get(id);
+-		if (job === void 0) throw new Error(`unknown job ${id}`);
++		if (job === void 0) throw new Error(`unknown job ${id}${AGENT_ID_LIKE.test(id) ? ` — that id looks like a subagent/agent id, not a job id; job ids are minted by the jobs service (for example "bash-1"), while agent ids belong to list_agents (inspect) and interrupt_agent (stop)` : ""}`);
+ 		return job;
+ 	}
+ 	/**

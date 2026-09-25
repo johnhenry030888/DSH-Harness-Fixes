@@ -1,0 +1,89 @@
+--- pristine/dsh-tool-subagent-control/lib/types/list-agents.js
++++ installed/dsh-tool-subagent-control/lib/types/list-agents.js
+@@ -27,8 +27,21 @@
+         return 'ready';
+     return agent.status === 'running' ? 'running' : 'idle';
+ }
+-/** Project one service row into the model-facing entry, or omit a one-shot child. */
+-function project(agents, entry, position) {
++/**
++ * Project one service row into the model-facing entry, or omit a one-shot child.
++ *
++ * Every status is sampled from the live registry at this read and stamped with
++ * `checkedAt`, because the registry moves independently of the read: an agent
++ * can settle or be stopped the instant after it is sampled. The stamp lets a
++ * caller tell "no live agent at 12:01:03" from a later state instead of
++ * treating one sample as a durable outcome.
++ * @param agents - live Agent registry.
++ * @param entry - the durable listing row.
++ * @param position - optional descendant position annotation.
++ * @param checkedAt - ISO timestamp of this listing's registry sample.
++ * @returns the model-facing entry, or undefined for a one-shot child.
++ */
++function project(agents, entry, position, checkedAt) {
+     const at = position === undefined ? {} : { parent: position.parentId, depth: position.depth };
+     if (entry.kind === 'diagnostic') {
+         return { kind: 'diagnostic', id: entry.id, reason: entry.reason, ...at };
+@@ -42,6 +55,7 @@
+         id: entry.id,
+         label: entry.label,
+         status: statusOf(agents, entry.id),
++        checkedAt,
+         ...at,
+     };
+ }
+@@ -53,10 +67,14 @@
+     ctx.tools.register(defineTool({
+         name: 'list_agents',
+         description: 'List your continuable background subagents by durable id and label. Use it to recall which ones '
+-            + 'you started, not to poll for completion — you are told when one finishes. Status comes from the live '
+-            + 'registry: running means the agent is working right now, idle means it is loaded but between turns '
+-            + '(it may be waiting on agents it started), and ready means it exists only in storage — resumable, not '
+-            + 'terminal, and not a result waiting to be collected; a `send_message` steers a running child at its nearest '
++            + 'you started, not to poll for completion — you are told when one finishes. Status is sampled from the live '
++            + 'registry at read time and each row carries `checkedAt`, the ISO timestamp of that sample, because the '
++            + 'agent can move the instant after it is read: running means a driver is active right now (including '
++            + 'inside a long tool call, so a child looping in bash reads as running), idle means a live agent loaded '
++            + 'but between turns (it may be waiting on agents it started), and ready means no live agent remains — '
++            + 'the conversation is in storage, resumable rather than terminal and not a result waiting to be '
++            + 'collected. Treat the row as last-known-as-of `checkedAt`, not as a durable outcome; a settlement '
++            + 'notice is the authoritative completion signal. A `send_message` steers a running child at its nearest '
+             + 'step boundary or starts a turn for an idle or ready child, and a direct child remains a `send_message` '
+             + 'candidate in every status. The snapshot is not a delivery '
+             + 'promise — `send_message` performs the authoritative check and may still fail. Children that could '
+@@ -84,6 +102,7 @@
+                                 id: { type: 'string', required: true },
+                                 label: { type: 'string', required: true },
+                                 status: { type: 'string', required: true, enum: ['running', 'idle', 'ready'] },
++                                checkedAt: { type: 'string', required: true },
+                                 parent: { type: 'string' },
+                                 depth: { type: 'number' },
+                             },
+@@ -116,7 +135,7 @@
+                                     ? ` parent=${String(entry.parent)} depth=${String(entry.depth)}`
+                                     : '';
+                                 return entry.kind === 'child'
+-                                    ? `${entry.id} [${entry.status}]${at} — ${entry.label}`
++                                    ? `${entry.id} [${entry.status} as of ${entry.checkedAt}]${at} — ${entry.label}`
+                                     : `${entry.id} [diagnostic: ${entry.reason}]${at}`;
+                             }).join('\n'),
+                     }];
+@@ -134,14 +153,16 @@
+             switch (request.scope) {
+                 case 'children': {
+                     const entries = await ctx.subagents.listChildren(parent.id, exec.signal);
++                    const checkedAt = new Date().toISOString();
+                     return entries
+-                        .map(entry => project(ctx.agents, entry))
++                        .map(entry => project(ctx.agents, entry, undefined, checkedAt))
+                         .filter(entry => entry !== undefined);
+                 }
+                 case 'descendants': {
+                     const entries = await ctx.subagents.listDescendants(parent.id, exec.signal);
++                    const checkedAt = new Date().toISOString();
+                     return entries
+-                        .map(entry => project(ctx.agents, entry, entry))
++                        .map(entry => project(ctx.agents, entry, entry, checkedAt))
+                         .filter(entry => entry !== undefined);
+                 }
+                 /* v8 ignore next 2 -- the resolver normalizes the schema-validated closed scope before dispatch. */

@@ -1,0 +1,50 @@
+--- pristine/dsh-subagent-fork-in-process/lib/index.js
++++ installed/dsh-subagent-fork-in-process/lib/index.js
+@@ -31,9 +31,16 @@
+ * in-process structured runtime), `agentOptions` (merged over the parent
+ * route), and `toolFilter`/`persona` (scoped restrict() and a scoped shadowing
+ * persona section).
++*
++* Every start logs its inherited prefix length; an empty prefix — the parent
++* is still inside its first, unbalanced turn — warns, because the child then
++* starts cold while the tool description promises inherited context. The
++* child's own session records the same count durably as its
++* `inheritedEventCount` (0 for an unseeded start).
+ */
+ var ForkInProcessProvider = class {
+ 	name;
++	logger;
+ 	capabilities = {
+ 		agentOptions: true,
+ 		outputSchema: true,
+@@ -42,20 +49,28 @@
+ 		persona: true
+ 	};
+ 	inheritsParentContext = true;
+-	constructor(name) {
++	constructor(name, logger) {
+ 		this.name = name;
++		this.logger = logger;
++	}
++	/** Report the seed decision; an empty seed is a cold child, not an inherited one. */
++	reportSeed(parent, inheritedEventCount) {
++		if (inheritedEventCount > 0) return;
++		this.logger?.warn(`subagent-fork-in-process: fork child of session ${parent.session.header.id} inherits 0 events — the parent has no completed turn yet (its current turn is still open), so the child starts with no inherited conversation; put the needed context in the prompt or continue an existing child with send_message instead`);
+ 	}
+ 	start(request) {
+ 		const seed = completedTurnPrefix(request.parent);
++		this.reportSeed(request.parent, seed.length);
+ 		return startInProcessRun(request, { ...seed.length > 0 ? { seed } : {} });
+ 	}
+ 	prepareContinuable(request) {
+ 		const seed = completedTurnPrefix(request.parent);
++		this.reportSeed(request.parent, seed.length);
+ 		return Promise.resolve(seed.length > 0 ? { seed } : {});
+ 	}
+ };
+ function apply(ctx, config) {
+-	ctx.subagents.registerProvider(new ForkInProcessProvider(config.providerName));
++	ctx.subagents.registerProvider(new ForkInProcessProvider(config.providerName, ctx.logger));
+ }
+ //#endregion
+ export { Config, apply, inject, name };

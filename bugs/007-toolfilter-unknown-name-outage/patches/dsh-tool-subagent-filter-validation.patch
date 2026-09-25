@@ -1,0 +1,74 @@
+--- pristine/dsh-tool-subagent/lib/index.js
++++ installed/dsh-tool-subagent/lib/index.js
+@@ -97,14 +97,48 @@
+ 	throw new Error(`child LLM route "${provider}/${model}" is not allowed for this Session`);
+ }
+ /**
+-* Whether configured Agent options require route validation before delegation.
+-* @param options - Tool-instance child defaults.
+-* @returns Whether configured provider, model, or effort values must be resolved.
+-*/
++ * Whether configured Agent options require route validation before delegation.
++ * @param options - Tool-instance child defaults.
++ * @returns Whether configured provider, model, or effort values must be resolved.
++ */
+ function hasConfiguredLlmSelection(options) {
+ 	return options?.provider !== void 0 || options?.model !== void 0 || options?.reasoningEffort !== void 0;
+ }
+ /**
++ * Refuse a configured `toolFilter` that names tools absent from the child's
++ * catalog. `tools.restrict()` rejects unknown names when a child is created,
++ * and before this check a single typo took down every spawn on the row while
++ * the route negative tests still passed (drill v3), so the failure belonged at
++ * the row rather than mid-spawn.
++ *
++ * The check runs at the two points where the catalog is complete: before the
++ * row's own tool starts a child, and at every `agent/created` (a boot-time
++ * signal for a standing composition, which mounts concurrently and therefore
++ * cannot answer for a sibling row's tool at its own apply time). A cordis
++ * `agent/created` listener rejection is contained and logged by the Agent
++ * registry, so the boot-time arm is a named error log rather than a torn-down
++ * session; the delegation arm is the hard failure.
++ *
++ * This row's own registrations are tolerated: a model-selection row registers
++ * its tool and `list_subagent_models` in each agent's own layer, where
++ * `restrict()` deliberately exempts them, and the child composition drops
++ * those names with a warning instead of failing the child.
++ * @param tools - the tools registry service.
++ * @param scope - the scope whose visible catalog to check (an agent's, once it exists).
++ * @param config - this row's configuration.
++ * @param rowLabel - the loader row id, for the diagnostic.
++ */
++function assertKnownToolFilterNames(tools, scope, config, rowLabel) {
++	const filter = config.toolFilter;
++	if (filter === void 0) return;
++	const known = new Set(tools.view(scope).knownNames);
++	known.add(config.toolName ?? "subagent");
++	if (config.modelSelectionSettings === true) known.add("list_subagent_models");
++	const unknown = [...filter.allow ?? [], ...filter.deny ?? []].filter((name) => !known.has(name));
++	if (unknown.length === 0) return;
++	throw new Error(`tool-subagent: row "${rowLabel}" toolFilter names ${unknown.length > 1 ? "tools" : "a tool"} absent from the child catalog: ${unknown.map((name) => `"${name}"`).join(", ")} — correct the name or remove it from the filter`);
++}
++/**
+ * Resolve an effective child route through its live adapter before the child is
+ * created. The LLM runtime owns provider lookup, exact-model metadata, effort
+ * validation, and adapter defaults.
+@@ -372,6 +406,10 @@
+ 	const continuable = (config.backgroundMode ?? "one-shot") === "continuable";
+ 	const toolName = config.toolName ?? "subagent";
+ 	const modelSelectionCapable = config.modelSelectionSettings === true;
++	const rowLabel = ctx.fiber?.entry?.id ?? (typeof ctx.fiber?.name === "string" ? ctx.fiber.name : "tool-subagent");
++	if (config.toolFilter !== void 0) ctx.on("agent/created", ({ agent }) => {
++		assertKnownToolFilterNames(ctx.tools, scopeOf(agent.ctx), config, rowLabel);
++	});
+ 	ctx.sessionProjections.register(subagentModelSelectionProjectionDefinition);
+ 	const assertSubagentProviderConfiguration = (subagentProvider) => {
+ 		if (typeof config.maxDepth === "number" && !subagentProvider.capabilities.depthLimit) throw new Error(`tool-subagent: provider "${subagentProvider.name}" cannot enforce maxDepth (no depthLimit capability) — set maxDepth: 'provider-managed' to leave the recursion budget to the provider`);
+@@ -490,6 +528,7 @@
+ 					async execute(args, exec) {
+ 						const parent = exec.agent;
+ 						if (!parent) throw new Error("subagent tool requires a calling agent (exec.agent was undefined)");
++						assertKnownToolFilterNames(runtimeCtx.tools, scopeOf(parent.ctx), config, rowLabel);
+ 						const modelRequest = args;
+ 						const parentOptions = parentAgentOptionsForDelegation(parent);
+ 						const requiresRoutePreflight = hasDelegationModelRequest(modelRequest) || hasConfiguredLlmSelection(config.agentOptions);
