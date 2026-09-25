@@ -36,8 +36,8 @@
   - [x] `./scripts/check-all.sh` + `./scripts/verify.sh` + `audit-secrets.sh`
   - [x] UI gates — N/A (harness bundle patches; no project UI files)
   - [x] visual baseline — N/A
-  - [ ] checkpoint/commit (`git`)
-  - [ ] push to origin
+  - [x] checkpoint/commit (`git`) — `88ec9a6` (bug 005 fix + docs)
+  - [x] push to origin — `https://github.com/johnhenry030888/DSH-Harness-Fixes` accepted `ee57a50..88ec9a6` on `main`; pre-push hooks passed (secrets audit OK)
   - [x] update this file (every turn ends by updating it)
 - Open items: the changed-set announcement (`adapter.invalidate()` +
   `registration.replace()`) is code-verified but its picker reload was not
