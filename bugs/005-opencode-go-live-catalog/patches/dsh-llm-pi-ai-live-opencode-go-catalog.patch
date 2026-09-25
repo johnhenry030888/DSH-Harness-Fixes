@@ -1,0 +1,389 @@
+--- /tmp/pristine/dsh-llm-pi-ai/lib/index.js
++++ /home/john/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/index.js
+@@ -11,8 +11,9 @@
+ import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
+ import { openAIResponsesApi } from "@earendil-works/pi-ai/api/openai-responses.lazy";
+ import { homedir } from "node:os";
+-import { access } from "node:fs/promises";
+-import { resolve } from "node:path";
++import { readFileSync } from "node:fs";
++import { access, mkdir, readFile, rename, writeFile } from "node:fs/promises";
++import { dirname, join, resolve } from "node:path";
+ //#region lib/types/replay.js
+ /**
+ * Durable pi-ai replay metadata and assistant-history reconstruction.
+@@ -368,10 +369,335 @@
+ */
+ function catalogModels(provider) {
+ 	if (!catalogProviders().has(provider)) return /* @__PURE__ */ new Map();
++	const live = LIVE_CATALOG[provider] === void 0 ? void 0 : liveCatalog(provider);
++	if (live !== void 0) return new Map(live.map((model) => [model.id, model]));
+ 	const models = getBuiltinModels(provider);
+ 	return new Map(models.map((model) => [model.id, model]));
+ }
+ /**
++ * Live catalog overlays for providers whose gateway ships models between
++ * pi-ai releases. Each listed provider is refreshed into a cache under the
++ * harness home at host startup; the cache is read synchronously, so the model
++ * list is current from the first resolution on, while a failed refresh leaves
++ * the last good cache (or the bundled catalog) untouched.
++ *
++ * The active set mirrors opencode itself: ids the gateway advertises that
++ * models.dev has not deprecated. Descriptors are pi-ai's own where it ships
++ * the id, and derived from models.dev metadata otherwise.
++ */
++const LIVE_CATALOG = {
++	"opencode-go": {
++		/** Ids the gateway currently serves (unauthenticated GET). */
++		listingUrl: "https://opencode.ai/zen/go/v1/models",
++		/** Metadata, deprecation status, limits, and prices: the source opencode reads. */
++		metadataUrl: "https://models.dev/api.json",
++		/** Offline fallback for the metadata source (opencode's own cache). */
++		metadataCachePath: () => join(homedir(), ".cache", "opencode", "models.json"),
++		/** pi-ai's endpoint per protocol for an id its catalog does not describe. */
++		baseUrls: {
++			"anthropic-messages": "https://opencode.ai/zen/go",
++			"openai-completions": "https://opencode.ai/zen/go/v1",
++			"openai-responses": "https://opencode.ai/zen/go/v1"
++		}
++	}
++};
++/**
++ * The harness-home cache one provider's live catalog lives in. The path sits
++ * beside the host's own storage root and stays a plain JSON document, so an
++ * operator can inspect it.
++ * @param provider - the configured route key.
++ * @returns the absolute cache path.
++ */
++function liveCatalogPath(provider) {
++	const home = process.env.DSH_HOME ?? join(homedir(), ".dsh");
++	return join(home, "storages", "llm-pi-ai", "catalog", `${provider}.json`);
++}
++/** Parsed live sets by provider; absent until a cache read or refresh finds one. */
++const liveCatalogs = new Map();
++/** Providers whose cache has been read at least once (including "no cache"). */
++const liveCatalogRead = new Set();
++/** Providers already kicked off, so settings churn does not refetch. */
++const liveCatalogStarted = new Set();
++/** In-flight refresh per provider, so concurrent calls coalesce. */
++const liveCatalogRefreshes = new Map();
++/**
++ * Read one provider's live catalog cache once per process. A missing or
++ * unreadable document is remembered as "no live catalog", which leaves the
++ * bundled catalog serving exactly as installed.
++ * @param provider - the configured route key.
++ * @returns the cached descriptors, or `undefined` when none are usable.
++ */
++function liveCatalog(provider) {
++	if (liveCatalogRead.has(provider)) return liveCatalogs.get(provider);
++	liveCatalogRead.add(provider);
++	let models;
++	try {
++		const parsed = JSON.parse(readFileSync(liveCatalogPath(provider), "utf8"));
++		const list = Array.isArray(parsed?.models) ? parsed.models : [];
++		models = list.filter((model) => typeof model?.id === "string" && model.id.length > 0);
++	} catch {
++		models = void 0;
++	}
++	if (models === void 0 || models.length === 0) liveCatalogs.delete(provider);
++	else liveCatalogs.set(provider, models);
++	return liveCatalogs.get(provider);
++}
++/** Swap one provider's in-memory live set after a cache read or refresh. */
++function rememberLiveCatalog(provider, models) {
++	liveCatalogRead.add(provider);
++	if (models.length === 0) liveCatalogs.delete(provider);
++	else liveCatalogs.set(provider, models);
++}
++/** A positive integer, or `undefined` when the value is not one. */
++function positiveInteger(value) {
++	return Number.isInteger(value) && value > 0 ? value : void 0;
++}
++/** pi-ai's input modalities; models.dev lists more than the wire model carries. */
++function liveInput(modalities) {
++	const input = (Array.isArray(modalities) ? modalities : []).filter((modality) => modality === "text" || modality === "image");
++	return input.length === 0 ? void 0 : input;
++}
++/** pi-ai cost rates and context tiers from a models.dev cost object. */
++function liveCost(cost) {
++	if (cost === void 0 || typeof cost !== "object") return void 0;
++	const rates = (value) => ({
++		input: typeof value?.input === "number" ? value.input : 0,
++		output: typeof value?.output === "number" ? value.output : 0,
++		cacheRead: typeof value?.cache_read === "number" ? value.cache_read : 0,
++		cacheWrite: typeof value?.cache_write === "number" ? value.cache_write : 0
++	});
++	const tiers = (Array.isArray(cost.tiers) ? cost.tiers : []).filter((tier) => tier?.tier?.type === "context" && Number.isInteger(tier.tier.size) && tier.tier.size > 0).map((tier) => ({
++		...rates(tier),
++		inputTokensAbove: tier.tier.size
++	}));
++	return {
++		...rates(cost),
++		...tiers.length === 0 ? {} : { tiers }
++	};
++}
++/**
++ * A total thinking-level map from models.dev effort values. Every base level
++ * is decided explicitly, mirroring the bundled catalog's convention: declared
++ * values carry their wire spelling and the rest are pinned unsupported.
++ * `none` is treated as "thinking off", which the map expresses by leaving
++ * `off` unsupported rather than inventing a wire value pi-ai never tested.
++ * @param metadata - one models.dev model entry.
++ * @returns the map, or `undefined` when the model declares no effort values.
++ */
++function liveThinkingLevelMap(metadata) {
++	const declared = (Array.isArray(metadata?.reasoning_options) ? metadata.reasoning_options : []).find((option) => option?.type === "effort")?.values;
++	if (!Array.isArray(declared) || declared.length === 0) return void 0;
++	const wire = new Map(declared.filter((value) => value !== "none" && THINKING_LEVELS.includes(value)).map((value) => [value, value]));
++	if (wire.size === 0) return void 0;
++	const map = {};
++	for (const level of THINKING_LEVELS) map[level] = wire.get(level) ?? null;
++	return map;
++}
++/** The pi-ai protocol a models.dev `npm` package implies, when it implies one. */
++function apiForPackage(npm) {
++	if (npm === "@ai-sdk/anthropic") return "anthropic-messages";
++	if (npm === "@ai-sdk/openai") return "openai-responses";
++	if (npm === "@ai-sdk/openai-compatible") return "openai-completions";
++	return void 0;
++}
++/**
++ * Materialize one provider's live descriptors from a gateway listing and
++ * models.dev metadata.
++ *
++ * An id pi-ai already ships keeps pi-ai's tested protocol, compatibility
++ * quirks, and reasoning map verbatim, while facts the metadata can correct
++ * (name, capacity, price, modalities) are refreshed. A model pi-ai has never
++ * seen inherits its closest same-family sibling's protocol and compatibility,
++ * falling back to the metadata's package mapping and then to the provider's
++ * default protocol.
++ * @param provider - the configured route key.
++ * @param listingIds - model ids the gateway advertises, in gateway order.
++ * @param metadataProvider - the models.dev entry for this provider, when reachable.
++ * @param bundled - pi-ai's installed descriptors for the route.
++ * @returns live descriptors, with deprecations and ids the metadata source
++ *   does not list removed (matching what opencode itself serves).
++ */
++function buildLiveCatalog(provider, listingIds, metadataProvider, bundled) {
++	const spec = LIVE_CATALOG[provider];
++	const seed = new Map(bundled.map((model) => [model.id, model]));
++	const metadataModels = metadataProvider?.models ?? {};
++	const deprecated = new Set();
++	for (const [id, metadata] of Object.entries(metadataModels)) {
++		if (metadata?.deprecated === true || metadata?.status === "deprecated") deprecated.add(id);
++	}
++	const familySeed = new Map();
++	for (const [id, model] of seed) {
++		const family = metadataModels[id]?.family;
++		if (typeof family === "string" && family.length > 0 && !familySeed.has(family)) familySeed.set(family, model);
++	}
++	const models = [];
++	for (const id of listingIds) {
++		if (deprecated.has(id)) continue;
++		const metadata = metadataModels[id];
++		if (metadata === void 0) continue;
++		const base = seed.get(id);
++		if (base !== void 0) {
++			models.push({
++				...base,
++				name: typeof metadata.name === "string" && metadata.name.length > 0 ? metadata.name : base.name,
++				contextWindow: positiveInteger(metadata.limit?.context) ?? base.contextWindow,
++				maxTokens: positiveInteger(metadata.limit?.output) ?? base.maxTokens,
++				input: liveInput(metadata.modalities?.input) ?? base.input,
++				cost: liveCost(metadata.cost) ?? base.cost,
++				reasoning: typeof metadata.reasoning === "boolean" ? metadata.reasoning : base.reasoning
++			});
++			continue;
++		}
++		const sibling = typeof metadata.family === "string" ? familySeed.get(metadata.family) : void 0;
++		const api = apiForPackage(metadata.provider?.npm) ?? sibling?.api ?? "openai-completions";
++		const compatibleSibling = sibling !== void 0 && sibling.api === api ? sibling : void 0;
++		const thinkingLevelMap = liveThinkingLevelMap(metadata) ?? compatibleSibling?.thinkingLevelMap;
++		const compat = compatibleSibling?.compat === void 0 ? void 0 : { ...compatibleSibling.compat };
++		models.push({
++			id,
++			name: typeof metadata.name === "string" && metadata.name.length > 0 ? metadata.name : id,
++			api,
++			provider,
++			baseUrl: compatibleSibling?.baseUrl ?? spec.baseUrls[api] ?? spec.baseUrls["openai-completions"],
++			reasoning: metadata.reasoning === true,
++			input: liveInput(metadata.modalities?.input) ?? ["text"],
++			cost: liveCost(metadata.cost) ?? {
++				input: 0,
++				output: 0,
++				cacheRead: 0,
++				cacheWrite: 0
++			},
++			contextWindow: positiveInteger(metadata.limit?.context) ?? 262144,
++			maxTokens: positiveInteger(metadata.limit?.output) ?? 32768,
++			...compat === void 0 ? {} : { compat },
++			...thinkingLevelMap === void 0 ? {} : { thinkingLevelMap }
++		});
++	}
++	return models;
++}
++/**
++ * Fetch one provider's live catalog sources: the gateway's advertised ids and
++ * models.dev's metadata, with opencode's own cache as the offline fallback.
++ * @param provider - the configured route key.
++ * @param signal - abort signal for the whole refresh.
++ * @returns the listing ids and the models.dev provider entry.
++ * @throws Error when the listing or any metadata source cannot be read.
++ */
++async function fetchLiveCatalogSources(provider, signal) {
++	const spec = LIVE_CATALOG[provider];
++	const headers = {
++		accept: "application/json",
++		...attributionHeaders()
++	};
++	let listingIds;
++	try {
++		const response = await fetch(spec.listingUrl, {
++			headers,
++			...signal === void 0 ? {} : { signal }
++		});
++		if (!response.ok) throw new Error(`${spec.listingUrl} answered ${response.status}`);
++		const body = await response.json();
++		listingIds = (Array.isArray(body?.data) ? body.data : []).map((entry) => entry?.id).filter((id) => typeof id === "string" && id.length > 0);
++	} catch (error) {
++		throw new Error(`live catalog: the gateway listing could not be read (${error instanceof Error ? error.message : String(error)})`);
++	}
++	let metadata;
++	try {
++		const response = await fetch(spec.metadataUrl, {
++			headers,
++			...signal === void 0 ? {} : { signal }
++		});
++		if (!response.ok) throw new Error(`${spec.metadataUrl} answered ${response.status}`);
++		metadata = await response.json();
++	} catch (error) {
++		try {
++			metadata = JSON.parse(await readFile(spec.metadataCachePath(), "utf8"));
++		} catch {
++			throw new Error(`live catalog: neither ${spec.metadataUrl} nor its local cache could be read (${error instanceof Error ? error.message : String(error)})`);
++		}
++	}
++	return {
++		listingIds,
++		metadataProvider: metadata?.[provider]
++	};
++}
++/**
++ * Fetch and build one provider's live catalog without writing the cache.
++ * @param provider - the configured route key.
++ * @param signal - abort signal for the fetch.
++ * @returns the descriptors the cache would hold.
++ */
++async function previewLiveCatalog(provider, signal) {
++	const sources = await fetchLiveCatalogSources(provider, signal);
++	return buildLiveCatalog(provider, sources.listingIds, sources.metadataProvider, getBuiltinModels(provider));
++}
++/**
++ * Refresh one provider's live catalog into its cache. Concurrent calls
++ * coalesce, and a failure rejects without touching the cache or the served
++ * set, so the previous catalog keeps working.
++ * @param provider - the configured route key.
++ * @param signal - abort signal for the whole refresh.
++ * @returns whether the served set changed.
++ */
++async function refreshLiveCatalog(provider, signal) {
++	const inFlight = liveCatalogRefreshes.get(provider);
++	if (inFlight !== void 0) return inFlight;
++	const run = (async () => {
++		const previous = liveCatalog(provider);
++		const models = await previewLiveCatalog(provider, signal);
++		if (models.length === 0) throw new Error("live catalog: the refreshed set is empty; keeping the previous one");
++		const path = liveCatalogPath(provider);
++		await mkdir(dirname(path), { recursive: true });
++		const temporary = `${path}.${process.pid}.tmp`;
++		await writeFile(temporary, JSON.stringify({
++			provider,
++			fetchedAt: new Date().toISOString(),
++			models
++		}, null, "\t"));
++		await rename(temporary, path);
++		const changed = JSON.stringify(previous) !== JSON.stringify(models);
++		rememberLiveCatalog(provider, models);
++		return changed;
++	})().finally(() => {
++		if (liveCatalogRefreshes.get(provider) === run) liveCatalogRefreshes.delete(provider);
++	});
++	liveCatalogRefreshes.set(provider, run);
++	return run;
++}
++/**
++ * Kick off the background live-catalog refresh for every configured route
++ * that lists one. The synchronous cache read already happened during profile
++ * resolution; this only replaces it with a fresher set and announces the
++ * change, so the model list is current without blocking startup and a failed
++ * fetch is harmless.
++ * @param ctx - the plugin context, for logging and disposal.
++ * @param hooks - the adapter, route, and registration accessors the refresh needs.
++ * @returns a kicker that retries providers whose route appeared later.
++ */
++function startLiveCatalogRefresh(ctx, hooks) {
++	const controller = new AbortController();
++	ctx.effect(() => () => controller.abort(), "llm-pi-ai.liveCatalog()");
++	const kick = () => {
++		for (const provider of Object.keys(LIVE_CATALOG)) {
++			if (liveCatalogStarted.has(provider)) continue;
++			if (!hooks.providers().includes(provider)) continue;
++			if (hooks.pinned(provider)) continue;
++			liveCatalogStarted.add(provider);
++			void refreshLiveCatalog(provider, controller.signal).then((changed) => {
++				if (!changed) return;
++				hooks.adapter.invalidate();
++				const registration = hooks.registration();
++				if (registration !== void 0) registration.replace(hooks.providers());
++			}).catch((error) => {
++				if (controller.signal.aborted) return;
++				ctx.logger.warn(`llm-pi-ai: live catalog refresh for "${provider}" failed; keeping the ${liveCatalogs.has(provider) ? "cached" : "installed"} catalog (${error instanceof Error ? error.message : String(error)})`);
++			});
++		}
++	};
++	kick();
++	return kick;
++}
++/**
+ * Disposition of every `OpenAICompletionsCompat` field. The `Record` key type
+ * is a drift gate: a pi-ai upgrade that adds a field fails compilation here
+ * until it is classified, so the offer never silently lags the upstream set.
+@@ -1757,6 +2083,10 @@
+ 		};
+ 		return this.snapshot;
+ 	}
++	/** Drop the memoized snapshot so the next resolution observes a refreshed live catalog. */
++	invalidate() {
++		this.snapshot = void 0;
++	}
+ 	/** The profile for one route within one snapshot, or the not-owned failure. */
+ 	profileOf(snapshot, provider) {
+ 		const profile = snapshot.profiles.get(provider);
+@@ -2656,6 +2986,13 @@
+ 		registeredFacts = facts;
+ 	};
+ 	ensureRegistrationFacts();
++	let kickLiveCatalog;
++	const liveCatalogHooks = {
++		adapter,
++		providers: () => [...profiles().keys()],
++		pinned: (provider) => (current().providers?.[provider]?.models?.length ?? 0) > 0,
++		registration: () => registration
++	};
+ 	ctx.inject(["settings"], (settingsCtx) => {
+ 		let registering = true;
+ 		settingsCtx.settings.installSection(ctx, NS, Config, config, {
+@@ -2679,10 +3016,12 @@
+ 					ctx.logger.error("llm-pi-ai: keeping the previous configurable-provider directory after a refused update");
+ 					ctx.logger.error(error);
+ 				}
++				kickLiveCatalog?.();
+ 			}
+ 		});
+ 		registering = false;
+ 	});
++	kickLiveCatalog = startLiveCatalogRefresh(ctx, liveCatalogHooks);
+ }
+ //#endregion
+-export { Config, PiAiAdapter, apply, inject, name, recordKeyFor, supportedProtocols };
++export { Config, PiAiAdapter, apply, buildLiveCatalog, catalogModels, inject, liveCatalogPath, name, previewLiveCatalog, recordKeyFor, refreshLiveCatalog, supportedProtocols };

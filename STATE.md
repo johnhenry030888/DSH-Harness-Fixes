@@ -4,32 +4,43 @@
 
 - Objective: Batch project for DeepSeek Harness bug fixes
 - Stack: polyglot | Features: none
-- Phase: post-`dsh` 0.1.5-rc.2 re-apply. All four bugs re-applied and verified.
-- What changed this turn (2026-09-20, `dsh` 0.1.1-rc.2 -> 0.1.5-rc.2):
-  - 001/002/003: patches regenerated against pristine 0.1.5-rc.2 sources and
-    re-applied. 003's second hunk had moved (`streamSimple` gained arguments);
-    the others needed only a clean regeneration.
-  - 004: re-ported. 0.1.5-rc.2 replaced `dsh-host-apiproxy` and its
-    hand-written RPC with generated Typert Remote namespaces. The composition
-    mount is unchanged; the caller is now a `TypertRemoteService`
-    `AuthorizationController` in `dsh-api-settings-controller` (SRC-dispatched,
-    so no generated-manifest edit), a strict client contribution in
-    `dsh-api-remotes` mounted as `ctx.remote.authorization`, and a Models
-    sign-in panel. Obsolete `dsh-host-apiproxy-*` / `dsh-client-connection*`
-    patches were removed.
-- Verification: `patch --dry-run` no-fuzz on every target; `node --check` clean;
-  pristine->reapply round-trip byte-identical; host controller and client
-  bundle runtime tests pass; `./scripts/check-all.sh` exit 0.
+- Phase: bug 005 added; all five local fixes applied to `dsh` 0.1.5-rc.2.
+- What changed this turn (2026-09-25, bug 005 `opencode-go` live catalog):
+  - Root cause: dsh served opencode-go models from pi-ai's release-locked
+    bundled catalog (27) and a 5-entry `settings.yaml` pin that *replaces* the
+    catalog; `discoverModels()` short-circuits on catalog providers,
+    `reuseCatalogProvider()` drops `refreshModels`, and dsh never calls
+    `Models.refresh()`. Live: gateway 42 ids / models.dev 32 active /
+    `opencode models` 32.
+  - Fix: patch `dsh-llm-pi-ai` to merge a live catalog overlay
+    (`catalogModels()`), refresh it in the background at host start from the
+    gateway listing ∩ models.dev non-deprecated (descriptor conversion seeded
+    by pi-ai's own entries, family/npm fallbacks), cache it atomically at
+    `~/.dsh/storages/llm-pi-ai/catalog/opencode-go.json`, invalidate the
+    adapter snapshot and re-announce routes when it changes. Removed the
+    `opencode-go` `models:` pin from `~/.dsh/settings.yaml` (backup:
+    `settings.yaml.bak-bug005-20260925`).
+  - New files: `bugs/005-opencode-go-live-catalog/` (README, EVIDENCE,
+    VERSIONS, UPSTREAM-DRAFT, patch, check/reapply/refresh scripts);
+    `STATUS.md` updated.
+- Verification: pristine->installed patch applies no-fuzz on top of bug 003;
+  `node --check` clean; `check.sh` exit 0 with live parity (served ids ==
+  `opencode models` opencode-go ids, 32/32); failure paths (settings pin,
+  truncated cache) exit 1; conversion unit test with stubbed sources;
+  headless host turn on `opencode-go/deepseek-v4.1-flash` (live-only id)
+  returned `pong`; truncated cache self-healed 31 -> 32 during boot;
+  `reapply.sh` idempotent; `check-all.sh`, `verify.sh`, `audit-secrets.sh`
+  all exit 0.
 - Autonomy loop (run without asking; stop only when verify passes AND tree committed AND pushed (or push explicitly deferred with reason)):
-  - [x] scaffold baseline materialized and audit refreshed to engine v1.15.0
-  - [x] lint (`linter-formatter` `lint`/`format`) + `run_tests` (+ `perf_gate`/`api_call` where applicable) + `audit-secrets.sh` clean
-  - [x] `./scripts/verify.sh` passes
+  - [x] lint (`linter-formatter` `lint`) — shellcheck/shfmt/biome/typos clean
+  - [x] `./scripts/check-all.sh` + `./scripts/verify.sh` + `audit-secrets.sh`
   - [x] UI gates — N/A (harness bundle patches; no project UI files)
   - [x] visual baseline — N/A
-  - [x] checkpoint/commit (`git`) — `b8119d7` (all four fixes re-applied)
-  - [x] push to origin — `https://github.com/johnhenry030888/DSH-Harness-Fixes` accepted `c9da9f8..b8119d7` on `main`; pre-push hooks passed (secrets audit OK)
+  - [ ] checkpoint/commit (`git`)
+  - [ ] push to origin
   - [x] update this file (every turn ends by updating it)
-- Open items: live browser OAuth round-trip against the real endpoints (see
-  `bugs/004-codex-oauth-missing-composition/EVIDENCE.md`) should be run after
-  the next `dsh web` restart.
+- Open items: the changed-set announcement (`adapter.invalidate()` +
+  `registration.replace()`) is code-verified but its picker reload was not
+  observed in a browser this run; re-check on the next `dsh web` restart.
+  `UPSTREAM-DRAFT.md` for bug 005 is NOT-FILED.
 - Decisions: see `docs/decisions.md`.
