@@ -39,7 +39,7 @@
     (v18: `wf/WF-BRIEF.md`, a lead-owned file neither writer owned) — the
     extraction harvests every absolute path in the writer's prompt, which is safe
     but should not be described as ownership.
-  - **Drill v19 written** (`/home/john/Documents/dsh-drill-archive/prompts/orchestrator-drill-prompt-v19.md`):
+  - **Drill v19 written** (`~/Desktop/orchestrator-drill-prompt-v19.md`, the only file left on the Desktop; v18's prompt was archived):
     the cost-discipline run — same end-to-end shape with the measurement
     delegated, bars on lead input share (<= ~17 %), preflight (<= 60 s), total
     (<= ~1 500 s), workflow incl. handoff (<= ~600 s) and 0 surviving mutations.
