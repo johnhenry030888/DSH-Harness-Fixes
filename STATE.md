@@ -89,10 +89,12 @@
     docs; pre-commit `shfmt`/`shellcheck`/`typos` cleared first: the two
     multiline `{ … }` blocks were expanded, the literal-`grep -F` marker
     scripts carry a file-level `# shellcheck disable=SC2016` with the reason,
-    and the four wordings that `typos` flagged were rephrased)
+    and the four wordings that `typos` flagged were rephrased), then `8c9d61e`
+    (the bug-007 live probe, its README/EVIDENCE record, and the STATUS/STATE
+    updates for it)
   - [x] push to origin — `https://github.com/johnhenry030888/DSH-Harness-Fixes`
-    accepted `63ff83d..baaf069` on `main`; pre-push hooks passed (pytest, node,
-    cargo/go skips, secrets green)
+    accepted `63ff83d..baaf069` and `baaf069..8c9d61e` on `main`; pre-push hooks
+    passed on both (pytest, node, cargo/go skips, secrets green)
   - [x] update this file (every turn ends by updating it)
 - Open items:
   - **Live probes outstanding for 016 / 020 / 027 / 028 / 029 / 030** — applied
