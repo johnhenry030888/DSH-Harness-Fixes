@@ -21,9 +21,18 @@ there (no fix patch of 009/012 changed).
 Verification note (2026-09-26, drill v13): fix 011 is **CLOSED** — ten clean
 `standard → orchestrator` switch samples on file
 (`~/Desktop/orchestrator-switch-path-log.md`), every one corroborated at
-transcript level, no 176-tool mount. Bug 007 remains the one fix no drill has
-exercised (it needs a preset edit under `~/.dsh`, which drills forbid); its
-checks and the bug-007 bundle markers are green.
+transcript level, no 176-tool mount.
+
+Verification note (2026-09-26, bug 007): the fix now has a **re-runnable live
+probe** — `bugs/007-toolfilter-unknown-name-outage/scripts/drill-007-probe.sh`
+runs both arms in a scratch harness home (real `~/.dsh` only read) and passes:
+the tolerant arm spawns a child whose own header proves the filter applied
+(`bash,edit,job_kill,job_list,job_output,read,write`), and the typo arm fails
+loudly with the loader row and `"subagnt_fast"` named while creating no child
+session. The second known-but-non-restrictable name, `list_subagent_models`,
+stays unit-verified (`tolerance-check.mjs`) because a standing row cannot enable
+`modelSelectionSettings`. Drill v14 takes this script as a required phase and
+carries the outstanding live probes for 016, 020, 027, 028, 029 and 030.
 
 | Bug | Title | Local fix | Upstream |
 |-----|-------|-----------|----------|

@@ -45,6 +45,25 @@
     `bugs/026…/scripts/target-path-check.mjs`) so `verify.sh` is green again;
     added `STATUS.md` rows and the header paragraph for all seven new bugs;
     updated this file; committed and pushed.
+  - **007 gained a re-runnable live probe** (`bugs/007…/scripts/drill-007-probe.sh`):
+    it boots the shipped headless profile twice against a targeted `toolFilter`
+    overlay in a scratch harness home, so the last unexercised fix no longer
+    needs a user-preset edit. Result: **PASS (both variants)** — the tolerant arm
+    spawned a child whose own header proves the filter applied, and the typo arm
+    failed loudly with the loader row and `"subagnt_fast"` named and created no
+    child session. (Two probe-design traps were found and documented: the
+    preset's 17 names are pins the headless host lacks, and a standing row cannot
+    enable `modelSelectionSettings`.)
+  - **Persona corrected for the batch-5 fixes** (preset backup
+    `agent.cordis.yml.pre-v14-20260926`, three edited lines): a child's count is
+    now read from the 027 banner instead of being distrusted as a hand count, and
+    the steering guidance reflects fix 030 — a steer cancels the in-flight tool
+    call, so the ~62 s long-call band is history and > ~20 s behind a long call is
+    friction to report.
+  - **Drill v14 written** (`~/Desktop/orchestrator-drill-prompt-v14.md`): required
+    live probes for 016, 020, 027, 028, 029 and 030, the 007 probe script as a
+    required phase, three regression checks, a completion gate and the exact
+    report/evidence paths.
 - Verification:
   - `bash scripts/check-all.sh` — exit 0, **all 30 checks PRESENT** (026-030
     included).
@@ -66,19 +85,25 @@
   - [x] `./scripts/check-all.sh` + `./scripts/verify.sh` + `audit-secrets.sh`
   - [x] UI gates — N/A (harness bundle patches; no project UI files)
   - [x] visual baseline — N/A
-  - [x] checkpoint/commit (`git`) — batch 5 commit (see `git log`)
+  - [x] checkpoint/commit (`git`) — `baaf069` (bugs 016/020/026-030 fixes +
+    docs; pre-commit `shfmt`/`shellcheck`/`typos` cleared first: the two
+    multiline `{ … }` blocks were expanded, the literal-`grep -F` marker
+    scripts carry a file-level `# shellcheck disable=SC2016` with the reason,
+    and the four wordings that `typos` flagged were rephrased)
   - [x] push to origin — `https://github.com/johnhenry030888/DSH-Harness-Fixes`
+    accepted `63ff83d..baaf069` on `main`; pre-push hooks passed (pytest, node,
+    cargo/go skips, secrets green)
   - [x] update this file (every turn ends by updating it)
 - Open items:
-  - **007 remains the one fix no drill has exercised** (it needs a bogus filter
-    name in a preset, i.e. edits under `~/.dsh` that drills forbid). Its
-    `check.sh` and bundle markers are green; an operator-run mini-procedure
-    (temporary preset copy + restore) is specified in drill v14.
-  - **Live probes outstanding for 027 / 028 / 029 / 030 / 016 / 020** — they
-    are applied and `check.sh`-green, but no drill phase has exercised them yet;
-    drill v14 carries the probes (banner count, in-script failure branch,
-    child-vs-lead prompt size, steer latency ≤ ~5 s, catalog self-query).
-  - 023/024 disclosed acceptance limits from the previous turn still stand
+  - **Live probes outstanding for 016 / 020 / 027 / 028 / 029 / 030** — applied
+    and `check.sh`-green, but no drill has exercised them yet; drill v14 carries
+    the probes (catalog self-query and mode exclusivity, scriptable session
+    creation, banner count on three child kinds, in-script failure branch, child
+    vs lead persona size, steer-cancels-in-flight latency).
+  - **007 is no longer waiting on a drill-time preset edit**: the new probe
+    script passes locally, but drill v14 still has to run it inside the real
+    session and paste the output as its acceptance record.
+  - 023/024 disclosed acceptance limits from an earlier turn still stand
     (headless overlays rather than the real preset; the direct-path classifier
     is covered by drills).
   - The human should restart their own `dsh web` so it loads the patched

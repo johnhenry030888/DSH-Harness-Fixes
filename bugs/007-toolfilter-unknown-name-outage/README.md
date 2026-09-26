@@ -116,3 +116,23 @@ listener throw there fails agent creation, which is the earliest sound
     `tool-subagent: row "include:agent-presets:tool-subagent" toolFilter names
     a tool absent from the child catalog: "subagnt_fast" — correct the name or
     remove it from the filter`.
+
+### Re-runnable live probe (2026-09-26)
+
+`scripts/drill-007-probe.sh` boots the shipped headless profile twice against a
+targeted `toolFilter` overlay inside a **scratch harness home**
+(`/tmp/orch-drill-007`; the real `~/.dsh` is read, never written), so a drill can
+exercise this fix without editing a user preset:
+
+- variant A (tolerant path) — the filter drops present names plus the
+  non-restrictable `subagent`; a child still spawns and its own `request/header`
+  proves the filter applied: `bash,edit,job_kill,job_list,job_output,read,write`;
+- variant B (typo) — the same list plus `subagnt_fast` fails loudly with the row
+  named (`tool-subagent: row "include:tool-subagent" toolFilter names a tool
+  absent from the child catalog: "subagnt_fast" — correct the name or remove it
+  from the filter`) and creates no child session.
+
+The standing row cannot enable `modelSelectionSettings` (the harness rejects it
+outside a scoped preset context), so the second known-but-non-restrictable name,
+`list_subagent_models`, stays covered by `scripts/tolerance-check.mjs`. Drill v14
+runs this script as a required phase.

@@ -89,3 +89,37 @@ check fails agent creation at boot, naming the row
 
 The user's `orchestrator` preset keeps its 17-name deny lists and mounts; the
 regression check is that all 11 rows still construct (drill v5 preflight).
+
+### `scripts/drill-007-probe.sh` — re-runnable live probe (2026-09-26)
+
+Run in a scratch harness home (`/tmp/orch-drill-007/home`, real `~/.dsh` only
+read) with a targeted overlay on the headless profile's own delegation row.
+Observed on the installed 0.1.5-rc.2 bundle:
+
+```
+variant A — filter drops present names plus the non-restrictable subagent
+  PASS  delegation survived the non-restrictable name (child replied READY)
+  PASS  no unknown-name failure for a name the child scope cannot restrict
+  child tools: bash,edit,job_kill,job_list,job_output,read,write
+  PASS  the filter really applied: the child's catalog dropped the restrictable names
+variant B — same list with subagnt_fast (typo)
+  PASS  the typo is named in the failure
+  PASS  the failure names the offending loader row
+  PASS  no child session was created on the poisoned filter (exit 0)
+bug-007 live probe: PASS (both variants)
+```
+
+Variant B's verbatim error:
+
+```
+Error: tool-subagent: row "include:tool-subagent" toolFilter names a tool
+absent from the child catalog: "subagnt_fast" — correct the name or remove it
+from the filter
+```
+
+Why the list is not the preset's 17-name one: those names are the *pins*, which
+the headless host does not compose, so the pre-spawn check would flag them as
+absent for the wrong reason (observed, then corrected). Why `list_subagent_models`
+is absent from the live list: enabling model selection on a standing row is
+rejected (`tool-subagent: standing \`modelSelectionSettings\` requires a scoped
+preset Context`), so that name stays unit-verified in `tolerance-check.mjs`.
