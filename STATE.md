@@ -117,7 +117,9 @@
   - [x] `./scripts/check-all.sh` + `./scripts/verify.sh` + `audit-secrets.sh`
   - [x] UI gates — N/A (harness bundle patches; no project UI files)
   - [x] visual baseline — N/A
-  - [x] checkpoint/commit (`git`) — `baaf069` (bugs 016/020/026-030 fixes +
+  - [x] checkpoint/commit (`git`) — `5cce78c` (bug 016b + the turn-aware 020
+    helper + STATUS/STATE docs; hooks green) after `baaf069` (bugs 016/020/026-030
+    fixes +
     docs; pre-commit `shfmt`/`shellcheck`/`typos` cleared first: the two
     multiline `{ … }` blocks were expanded, the literal-`grep -F` marker
     scripts carry a file-level `# shellcheck disable=SC2016` with the reason,
@@ -125,8 +127,9 @@
     (the bug-007 live probe, its README/EVIDENCE record, and the STATUS/STATE
     updates for it)
   - [x] push to origin — `https://github.com/johnhenry030888/DSH-Harness-Fixes`
-    accepted `63ff83d..baaf069` and `baaf069..8c9d61e` on `main`; pre-push hooks
-    passed on both (pytest, node, cargo/go skips, secrets green)
+    accepted `63ff83d..baaf069`, `baaf069..8c9d61e` and `edcc07c..5cce78c` on
+    `main`; pre-push hooks passed on every push (pytest, node, cargo/go skips,
+    secrets green)
   - [x] update this file (every turn ends by updating it)
 - Open items:
   - **Live probes outstanding for 016 / 020 / 027 / 028 / 029 / 030** — applied
