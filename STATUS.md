@@ -1,12 +1,13 @@
 # Status
 
-All twenty-three local fixes are applied to the `dsh` 0.1.5-rc.2 bundle (bugs
+All thirty local fixes are applied to the `dsh` 0.1.5-rc.2 bundle (bugs
 001-004 re-applied 2026-09-20; bug 005 added 2026-09-25; bugs 006-010 added
 2026-09-25 from the orchestrator drill v3/v4 findings; bugs 011-014, 018, 019
 added 2026-09-26 from drill v6/v7/v8 findings; bugs 014b, 017, 021, 022 added
 2026-09-26 from drill v9/v10 findings; bugs 023-025 added 2026-09-26 from
-drill v11 findings), with patches generated against pristine published sources
-and verified by pristine->reapply round-trips.
+drill v11 findings; bugs 016, 020, 026-030 added 2026-09-26 from drill v12
+findings and the orchestrator efficiency pass), with patches generated against
+pristine published sources and verified by pristine->reapply round-trips.
 
 Deployment note (2026-09-26): `~/.dsh/settings.yaml` now **deliberately**
 re-pins the eight `opencode-go.models` entries, so `llm.listModels()` serves the
@@ -17,11 +18,12 @@ centralized the served-but-unconfigured/unknown-id wording in a shared
 `dsh-llm` formatter, so bugs 009's and 012's checks now assert their classes
 there (no fix patch of 009/012 changed).
 
-Stretch items: 015 (worker descriptor `toolFilter` — the descriptor half is
-covered by bug 018), 016 (catalog introspection — NOT implemented this batch;
-no seam-clean callable exists in the current composition), 020 (scriptable
-session creation — documented as NOT-FILED; the web process token remains the
-only local auth path).
+Verification note (2026-09-26, drill v13): fix 011 is **CLOSED** — ten clean
+`standard → orchestrator` switch samples on file
+(`~/Desktop/orchestrator-switch-path-log.md`), every one corroborated at
+transcript level, no 176-tool mount. Bug 007 remains the one fix no drill has
+exercised (it needs a preset edit under `~/.dsh`, which drills forbid); its
+checks and the bug-007 bundle markers are green.
 
 | Bug | Title | Local fix | Upstream |
 |-----|-------|-----------|----------|
@@ -48,6 +50,13 @@ only local auth path).
 | [023](bugs/023-inspection-ordering-guard/README.md) | verify→review ordering has no mechanical guard: a live write-capable child can corrupt a concurrent read-only review | APPLIED to bundle 0.1.5-rc.2 (`INSPECTION_CONFLICT` refusal in `dsh-subagent` on both creation paths, keyed on live status + the resolved `sandbox/mode` policy + cwd-prefix overlap; `list_agents` rows expose `filePolicy` + `tree`; live: refused while the writer ran, same call returned `READY` after settlement) | NOT-FILED |
 | [024](bugs/024-workflow-diagnostics/README.md) | workflow `run-end` hides contained failures; one condition has two wordings by call path | APPLIED to bundle 0.1.5-rc.2 (`failedAgents`+`error`+requested route on `run-end`; shared `dsh-llm` `modelResolutionDiagnostic` with `MODEL_NOT_CONFIGURED`/`UNKNOWN_MODEL` codes used by pi-ai and the delegation classifier; live: identical sentence both paths, run-end carries `failedAgents: 2`) | NOT-FILED |
 | [025](bugs/025-read-only-pytest-cache/README.md) | read-only lanes emit a `PytestCacheWarning` and drift back to a workaround command | APPLIED to bundle 0.1.5-rc.2 (`PYTEST_ADDOPTS=-p no:cacheprovider` exported by read-only bash calls only, appended to any inherited value; live: read-only lane `3 passed` with no warning, write lane unchanged) | NOT-FILED |
+| [026](bugs/026-target-path-ordering-guard/README.md) | the 023 guard keys on the session cwd, so a review of an unrelated tree is refused for the wrong reason | APPLIED to bundle 0.1.5-rc.2 (guard keys on the delegation's declared target paths via `declaredTreePaths`, and the message names the tested tree; live in drill v13: refusal named `<…>/project` and the writer's `stats.py`, same call allowed after settlement) | NOT-FILED |
+| [027](bugs/027-child-tool-count-banner/README.md) | children report a wrong own catalog size (137/157 claimed vs 161 actual) | APPLIED to bundle 0.1.5-rc.2 (the `subagent:layer` banner states the authoritative advertised count, computed from the same registry view the filter uses) | NOT-FILED |
+| [028](bugs/028-workflow-agent-failure-code/README.md) | a rejected pin reaches a workflow script as a bare `null`; the same condition has two wordings by call path | APPLIED to bundle 0.1.5-rc.2 (terminal turn failure code preserved as `SubagentResult.errorCode` through both in-process and out-of-process paths, one stable code) | NOT-FILED |
+| [029](bugs/029-compact-worker-persona/README.md) | every child inherits the lead's full ~20.4 k-char persona (per-child token cost + the seeded-fork impersonation hazard) | APPLIED to bundle 0.1.5-rc.2 (child composition installs a compact ~520-char worker persona naming role, parent, filter and return contract; a row's own `persona` is honoured when set) | NOT-FILED |
+| [030](bugs/030-steer-cancels-in-flight-tool-call/README.md) | a steer cannot interrupt an in-flight tool call (62 s worst case; a long call is un-steerable) | APPLIED to bundle 0.1.5-rc.2 (cancel-then-replan: `AgentLoop` tracks `inFlightToolCalls` around `executeToolCalls()` and a steer cancels them, delivering the message at the resulting boundary) | NOT-FILED |
+| [016](bugs/016-catalog-self-query/README.md) | no way to query one's own catalog (the lead hand-counts 177 vs 178; children report 161 or 137) | APPLIED to bundle 0.1.5-rc.2 (`list_subagent_models({catalog:true})` — a third, mutually exclusive mode returning the authoritative `{count,names}`) | NOT-FILED |
+| [020](bugs/020-scriptable-session-creation/README.md) | no scriptable local session creation: every switch-path/preset probe costs the operator manual GUI work | APPLIED (helper + documented path; no harness code change — auth untouched) | NOT-FILED |
 
 ## Legend
 

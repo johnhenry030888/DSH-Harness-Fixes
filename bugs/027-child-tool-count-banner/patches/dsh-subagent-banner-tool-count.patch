@@ -1,0 +1,15 @@
+--- pristine/subagent/lib/index.js
++++ installed/subagent/lib/index.js
+@@ -580,7 +580,11 @@
+ 	childCtx.systemPrompt.context({
+ 		name: "subagent:layer",
+ 		order: childCtx.systemPrompt.getContextOrder("SUBAGENT_LAYER") ?? 118,
+-		text: layerLines.join(" ")
++		text: (context) => {
++			const view = childCtx.tools.view(context.scope ?? scopeOf(childCtx));
++			const advertised = view.visible.size;
++			return `${layerLines.join(" ")} This layer advertises ${advertised} tool${advertised === 1 ? "" : "s"} to its model — the authoritative count its own request header carries, computed from the same registry view the tool filter uses. Report this injected number, never a hand-count of an inherited catalog.`;
++		}
+ 	});
+ }
+ /**

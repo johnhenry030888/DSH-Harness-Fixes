@@ -1,0 +1,10 @@
+--- pristine/workflow-worker-thread/lib/index.js
++++ installed/workflow-worker-thread/lib/index.js
+@@ -534,6 +534,7 @@
+ 					output: result.output,
+ 					...result.structured !== void 0 ? { structured: result.structured } : {},
+ 					...result.diagnostic !== void 0 ? { diagnostic: result.diagnostic } : {},
++					...result.errorCode !== void 0 ? { errorCode: result.errorCode } : {},
+ 					stopReason: result.stopReason
+ 				});
+ 				if (snapshot === void 0) throw new TypeError("child result is not losslessly JSON-serializable");

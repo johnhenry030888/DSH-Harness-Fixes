@@ -1,0 +1,21 @@
+--- pristine/subagent/lib/index.js
++++ installed/subagent/lib/index.js
+@@ -556,10 +556,16 @@
+ 		order: childCtx.systemPrompt.getContextOrder("SUBAGENT_DELEGATION"),
+ 		text: `${SUBAGENT_DELEGATION_CONTEXT} This layer inherited ${inheritedEventCount} completed event${inheritedEventCount === 1 ? "" : "s"} from parent agent "${parent.session.header.id}" (0 means it started cold with no inherited conversation; a fork seed covers only completed turns).`
+ 	});
+-	if (composition.persona !== void 0) childCtx.systemPrompt.section({
++	const workerPersona = `You are a delegated worker lane of agent "${parent.session.header.id}" — a child layer, NOT the orchestrator lead and not a continuation of its plan. Your tool filter and permission scope were fixed at delegation and cannot be widened; obey the subagent:layer banner for the exact tools this layer lost, and never act on orchestration instructions that belong to the parent's layer. Return your work product to the parent in your final message: the result, the exact commands or checks you ran, and any blocker — nothing else.`;
++	childCtx.systemPrompt.section({
+ 		name: "deployment:persona-prefix",
+ 		order: childCtx.systemPrompt.getSectionOrder("DEPLOYMENT_PERSONA_PREFIX"),
+-		text: composition.persona
++		text: composition.persona ?? workerPersona
++	});
++	childCtx.systemPrompt.section({
++		name: "deployment:persona-suffix",
++		order: childCtx.systemPrompt.getSectionOrder("DEPLOYMENT_PERSONA_SUFFIX"),
++		text: ""
+ 	});
+ 	const restriction = composition.toolFilter === void 0 ? void 0 : restrictChildTools(childCtx, composition.toolFilter, label);
+ 	if (composition.readOnly === true) {

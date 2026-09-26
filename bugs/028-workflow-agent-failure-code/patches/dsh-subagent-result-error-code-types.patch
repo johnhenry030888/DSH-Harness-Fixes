@@ -1,0 +1,16 @@
+--- pristine/subagent/lib/types/types.d.ts
++++ installed/subagent/lib/types/types.d.ts
+@@ -289,6 +289,13 @@
+      * to 4096 UTF-8 bytes. Consumers present it separately from {@link output}.
+      */
+     readonly diagnostic?: string;
++    /**
++     * Machine-readable failure code for a non-`completed` result, preserved
++     * from the child's own structured turn failure (e.g. `MODEL_NOT_CONFIGURED`
++     * or `UNKNOWN_MODEL`). The rendered {@link diagnostic} may append the code
++     * in prose; this field is the stable value a consumer branches on.
++     */
++    readonly errorCode?: string;
+     /** Why the run ended. A non-`completed` reason means `output` may be partial. */
+     readonly stopReason: SubagentStopReason;
+ }

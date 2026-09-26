@@ -1,0 +1,37 @@
+--- pristine/workflow-worker-thread/lib/worker.cjs
++++ installed/workflow-worker-thread/lib/worker.cjs
+@@ -450,12 +450,14 @@
+ 						});
+ 						throw this.cancelledError();
+ 					}
++					const errorCode = typeof error?.code === "string" && error.code.length > 0 ? error.code : "AGENT_RESULT";
+ 					this.observer.agentEnd({
+ 						...info,
+ 						outcome: "failed",
+-						error: renderThrown(error)
++						error: renderThrown(error),
++						errorCode
+ 					});
+-					throw new _deepseek_ai_dsh_workflow.WorkflowError(`child agent run failed: ${renderThrown(error)}`, "AGENT_RESULT", { cause: error });
++					throw new _deepseek_ai_dsh_workflow.WorkflowError(`child agent run failed: ${renderThrown(error)}`, errorCode, { cause: error });
+ 				}
+ 				if (result.stopReason === "completed") {
+ 					if (opts.schema !== void 0) {
+@@ -485,12 +487,15 @@
+ 					});
+ 					throw this.cancelledError();
+ 				}
++				const errorCode = typeof result.errorCode === "string" && result.errorCode.length > 0 ? result.errorCode : "AGENT_RESULT";
++				const detail = result.diagnostic ?? `child ended with stopReason "${result.stopReason}"`;
+ 				this.observer.agentEnd({
+ 					...info,
+ 					outcome: "failed",
+-					error: result.diagnostic ?? `child ended with stopReason "${result.stopReason}"`
++					error: result.diagnostic ?? `child ended with stopReason "${result.stopReason}"`,
++					errorCode
+ 				});
+-				return null;
++				throw new _deepseek_ai_dsh_workflow.WorkflowError(`child agent failed: ${detail}`, errorCode, { fatal: false });
+ 			} finally {
+ 				await run.dispose();
+ 			}

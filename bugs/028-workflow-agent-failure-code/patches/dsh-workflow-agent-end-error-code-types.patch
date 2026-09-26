@@ -1,0 +1,25 @@
+--- pristine/workflow/lib/types/types.d.ts
++++ installed/workflow/lib/types/types.d.ts
+@@ -98,7 +98,7 @@
+     /** The model the call asked for (`opts.model`), when one was named. */
+     requestedModel?: string;
+ }
+-/** How one `agent()` call settled: clean result, child failure (script sees `null`), or run cancellation. */
++/** How one `agent()` call settled: clean result, child failure (script branch), or run cancellation. */
+ export type WorkflowAgentOutcome = 'completed' | 'failed' | 'cancelled';
+ /** One `agent()` call's settlement (the `workflow/agent-end` payload). */
+ export interface WorkflowAgentEndInfo extends WorkflowAgentInfo {
+@@ -111,6 +111,13 @@
+      * failure detail to report).
+      */
+     error?: string;
++    /**
++     * Machine-readable failure code for a `failed` outcome — the child's own
++     * structured code (e.g. `MODEL_NOT_CONFIGURED`) or `AGENT_RESULT` when the
++     * child reported none. A direct `agent()` call rejects with this code, and
++     * the run record carries it beside the prose `error`.
++     */
++    errorCode?: string;
+ }
+ /**
+  * A settled run's outcome as event data (the `workflow/end` payload): the

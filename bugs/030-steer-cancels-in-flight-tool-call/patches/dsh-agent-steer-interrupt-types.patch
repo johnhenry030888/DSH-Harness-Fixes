@@ -1,0 +1,21 @@
+--- pristine/dsh-agent/lib/types/runtime-types.d.ts
++++ installed/dsh-agent/lib/types/runtime-types.d.ts
+@@ -192,12 +192,16 @@
+         followup(message: UserMessage): void;
+         /**
+        * Submit steering for the nearest step. An idle driver starts a turn;
+-       * a running driver consumes it at its next step boundary.
++       * a running driver consumes it at its next step boundary, and a
++       * caller-marked interruptive steer cancels the executing tool call so
++       * the message is replanned at the resulting boundary instead of waiting
++       * for the whole call.
+        * A rejected step leaves steering parked in the inbox until the next
+        * wake; cancellation or disposal may discard pending steering.
+        * @param message - identified steering content and the source that supplied it.
++       * @param options - `interruptToolCall: true` cancels an in-flight call.
+        */
+-        steer(message: UserMessage): void;
++        steer(message: UserMessage, options?: { readonly interruptToolCall?: boolean }): void;
+         /**
+        * Queue model-facing context for the next pre-step without waking the
+        * driver. A running driver claims it at the nearest later step boundary;

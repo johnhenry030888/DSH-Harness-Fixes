@@ -1,0 +1,53 @@
+--- pristine/tool-subagent/lib/index.js
++++ installed/tool-subagent/lib/index.js
+@@ -248,10 +248,30 @@
+ * @param ctx - Context whose tool registry owns the fixed discovery definition.
+ * @param policy - Route policy captured for this Session.
+ */
++/**
++* Report the calling agent's own advertised tool catalog: the authoritative
++* names and count the dispatcher gives this layer's model request, read from
++* the same registry view the restriction filter uses. Bug 016: no surface let
++* an agent measure its own catalog, so a lead hand-counted (drill v10: 177 vs
++* 178) and children guessed. The query is cheap (one registry view, no schema
++* cloning) and never mutates the catalog it measures.
++* @param ctx - the registration context, used when the caller has no agent.
++* @param exec - the tool execution carrying the calling agent.
++* @returns a JSON string: this layer's advertised tool count and sorted names.
++*/
++function listAgentCatalog(ctx, exec) {
++	const runtimeCtx = exec.agent?.ctx ?? ctx;
++	const view = runtimeCtx.tools.view(scopeOf(runtimeCtx));
++	const names = [...view.visible.keys()].sort();
++	return JSON.stringify({
++		count: names.length,
++		names
++	});
++}
+ function registerListSubagentModels(ctx, policy) {
+ 	ctx.tools.register(defineTool({
+ 		name: "list_subagent_models",
+-		description: "Discover LLM routes for subagents without changing the current Agent. Call with no arguments to list registered providers, with `provider` to list its advertised models, or with `provider` and `model` to inspect that exact model and its reasoning efforts. Catalog membership is advisory: an adapter may accept an unlisted model id. Use the returned ids with a delegation tool's `provider`, `model`, and `reasoning_effort` fields.",
++		description: "Discover LLM routes for subagents without changing the current Agent. Call with no arguments to list registered providers, with `provider` to list its advertised models, or with `provider` and `model` to inspect that exact model and its reasoning efforts. Catalog membership is advisory: an adapter may accept an unlisted model id. Use the returned ids with a delegation tool's `provider`, `model`, and `reasoning_effort` fields. Set `catalog: true` to instead report this layer's own model-facing tool catalog — the authoritative advertised tool count and names as the dispatcher sees them (report that instead of hand-counting an inherited catalog).",
+ 		parameters: {
+ 			provider: {
+ 				type: "string",
+@@ -260,6 +280,10 @@
+ 			model: {
+ 				type: "string",
+ 				description: "Exact model id to inspect. Requires provider; omit to list that provider's advertised models."
++			},
++			catalog: {
++				type: "boolean",
++				description: "When true, report this layer's own advertised tool catalog ({count, names}) instead of LLM routes."
+ 			}
+ 		},
+ 		output: {
+@@ -270,6 +294,7 @@
+ 			}]
+ 		},
+ 		execute(args, exec) {
++			if (args.catalog === true) return listAgentCatalog(ctx, exec);
+ 			return listSubagentModels(ctx, policy, args, exec.signal);
+ 		}
+ 	}));

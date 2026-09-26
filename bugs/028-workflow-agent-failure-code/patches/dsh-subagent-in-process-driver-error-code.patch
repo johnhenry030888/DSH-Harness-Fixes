@@ -1,0 +1,38 @@
+--- pristine/subagent-in-process-driver/lib/index.js
++++ installed/subagent-in-process-driver/lib/index.js
+@@ -248,6 +248,19 @@
+ 	if (failure === void 0 || typeof failure.message !== "string" || failure.message.length === 0) return void 0;
+ 	return typeof failure.code === "string" && failure.code.length > 0 ? `${failure.message} (${failure.code})` : failure.message;
+ }
++/**
++* The machine-readable failure code of a terminal turn/end reason, preserved
++* separately from the rendered diagnostic. Bug 028: the workflow script gets
++* a discriminated failure whose `code` matches the direct delegation path, so
++* a script can branch on MODEL_NOT_CONFIGURED without parsing prose.
++* @param reason - the child's terminal turn/end reason, if any.
++* @returns the failure code, or `undefined` when the reason carries none.
++*/
++function turnFailureCode(reason) {
++	if (reason?.kind !== "error") return void 0;
++	const code = reason.error?.code;
++	return typeof code === "string" && code.length > 0 ? code : void 0;
++}
+ /** Read one settled child's result from events after its activation boundary. */
+ function readResult(child, boundary, cancelled, structured) {
+ 	const own = child.session.snapshotEvents(boundary);
+@@ -256,6 +269,7 @@
+ 	const recorded = toStopReason(lastEnd?.data.reason);
+ 	const stopReason = cancelled && recorded !== "completed" ? "aborted" : recorded;
+ 	const diagnostic = stopReason === "completed" ? void 0 : turnDiagnostic(lastEnd?.data.reason);
++	const errorCode = stopReason === "completed" ? void 0 : turnFailureCode(lastEnd?.data.reason);
+ 	if (structured !== void 0) {
+ 		if (structured.captured !== void 0) return {
+ 			output,
+@@ -270,6 +284,7 @@
+ 	return {
+ 		output,
+ 		...diagnostic === void 0 ? {} : { diagnostic },
++		...errorCode === void 0 ? {} : { errorCode },
+ 		stopReason
+ 	};
+ }

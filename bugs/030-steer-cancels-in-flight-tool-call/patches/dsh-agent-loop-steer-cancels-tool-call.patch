@@ -1,0 +1,62 @@
+--- pristine/dsh-agent-loop/lib/index.js
++++ installed/dsh-agent-loop/lib/index.js
+@@ -748,6 +748,8 @@
+ 	/** Process-local revision of assistant frames for this attached Session. */
+ 	assistantStreamRevision = 0;
+ 	assistantAttemptCounter = 0;
++	/** Tool-call phases currently executing; steering cancels one through its signal. */
++	inFlightToolCalls = 0;
+ 	systemPrompt;
+ 	/** Identities fully frozen by this loop; weak references do not retain replaced history. */
+ 	frozenMessages = /* @__PURE__ */ new WeakSet();
+@@ -789,8 +791,33 @@
+ 	followup(input) {
+ 		this.send(input, "next-turn", true);
+ 	}
+-	steer(input) {
++	/**
++	* Submit steering for the nearest step. An idle driver starts a turn. A
++	* caller-marked interruptive steer (the model-facing send_message) cancels an
++	* in-flight tool call through its AbortSignal and lets the driver replan with
++	* the message; the message would otherwise wait for the whole call, which is
++	* exactly when a caller most wants to redirect. A tool that ignores its
++	* cancellation signal may still run to completion. A rejected step leaves
++	* steering parked in the inbox until the next wake; cancellation or disposal
++	* may discard pending steering.
++	* @param input - identified steering content and the source that supplied it.
++	* @param options - `interruptToolCall: true` cancels the executing call.
++	*/
++	steer(input, options) {
+ 		this.send(input, "next-step", true);
++		if (options?.interruptToolCall === true) this.cancelInFlightToolCall();
++	}
++	/**
++	* Cancel the current tool-call phase so an admitted steer reaches the child
++	* at the resulting boundary. The abort latches `wakeRequested` first: the
++	* driver's containment path sets the phase idle after the abort, and the
++	* latched wake makes it replay the pending steer in one fresh turn instead
++	* of stranding it in the inbox. No-op while idle or between tool calls.
++	*/
++	cancelInFlightToolCall() {
++		if (this.phase.kind !== "running" || this.inFlightToolCalls === 0) return;
++		this.phase.wakeRequested = true;
++		this.phase.abort.abort({ kind: "steered" });
+ 	}
+ 	inject(input) {
+ 		this.send(input, "next-step", false);
+@@ -1115,8 +1142,13 @@
+ 				if (finish.kind === "max-tokens") return { kind: "max-tokens" };
+ 				const toolCalls = message.content.filter((block) => block.type === "tool-call");
+ 				if (toolCalls.length === 0) return { kind: "completed" };
+-				const { concluded } = await executeToolCalls(this.loopCtx, turn, step, toolCalls, signal, (context) => this.inbox.splice("next-step", this.inbox.nextStep.length, 0, [context]));
+-				return concluded ? { kind: "completed" } : null;
++				this.inFlightToolCalls += 1;
++				try {
++					const { concluded } = await executeToolCalls(this.loopCtx, turn, step, toolCalls, signal, (context) => this.inbox.splice("next-step", this.inbox.nextStep.length, 0, [context]));
++					return concluded ? { kind: "completed" } : null;
++				} finally {
++					this.inFlightToolCalls -= 1;
++				}
+ 			} catch (error) {
+ 				if (!live.ended) live.abandon();
+ 				throw error;

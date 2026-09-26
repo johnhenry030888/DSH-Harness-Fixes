@@ -1,0 +1,14 @@
+--- pristine/subagent/lib/index.js
++++ installed/subagent/lib/index.js
+@@ -2901,9 +2901,11 @@
+ 		} catch {}
+ 		const collected = parts.collectDiagnostic?.();
+ 		const diagnostic = collected === void 0 ? void 0 : limitSubagentDiagnostic(collected);
++		const errorCode = toError(error).code;
+ 		return {
+ 			output: parts.collectOutput(),
+ 			...diagnostic === void 0 ? {} : { diagnostic },
++			...typeof errorCode === "string" && errorCode.length > 0 ? { errorCode } : {},
+ 			stopReason: "error"
+ 		};
+ 	} finally {

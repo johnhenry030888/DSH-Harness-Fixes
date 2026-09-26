@@ -15,11 +15,11 @@ marker() {
 # The ordering guard owns one tree-overlap test, one conflict scan, and one
 # refusal, and both child-creation paths consult it.
 marker "function treesOverlap(left, right)" "$SUB"
-marker "function inspectionConflicts(ctx, parent, readOnlyRequested)" "$SUB"
-marker "function assertInspectionOrdering(ctx, parent, readOnlyRequested)" "$SUB"
+marker "function inspectionConflicts(ctx, parent, readOnlyRequested" "$SUB"
+marker "function assertInspectionOrdering(ctx, parent, readOnlyRequested" "$SUB"
 marker '"INSPECTION_CONFLICT"' "$SUB"
-marker "assertInspectionOrdering(this.ctx, spec.request.parent, spec.request.readOnly)" "$SUB"
-marker "assertInspectionOrdering(this.ctx, request.parent, request.readOnly)" "$SUB"
+marker "assertInspectionOrdering(this.ctx, spec.request.parent, spec.request.readOnly" "$SUB"
+marker "assertInspectionOrdering(this.ctx, request.parent, request.readOnly" "$SUB"
 # Write-capability is read from the resolved sandbox policy, not guessed.
 marker 'sandboxPolicy?.overrideOf(candidate.session) === "read-only"' "$SUB"
 

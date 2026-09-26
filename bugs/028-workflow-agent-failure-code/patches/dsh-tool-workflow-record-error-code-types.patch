@@ -1,0 +1,20 @@
+--- pristine/tool-workflow/lib/types/types.d.ts
++++ installed/tool-workflow/lib/types/types.d.ts
+@@ -30,6 +30,8 @@
+     readonly outcome: WorkflowAgentOutcome;
+     /** Why a non-`completed` member failed, when a provider-authored diagnostic exists. */
+     readonly error?: string;
++    /** Machine-readable failure code for a failed member (e.g. `MODEL_NOT_CONFIGURED`), when one exists. */
++    readonly errorCode?: string;
+     /** The provider the `agent()` call asked for, when one was named. */
+     readonly requestedProvider?: string;
+     /** The model the `agent()` call asked for, when one was named. */
+@@ -52,6 +54,8 @@
+     readonly failedAgents?: number;
+     /** The first failed member's diagnostic, when it carried one. */
+     readonly error?: string;
++    /** The first failed member's machine-readable failure code, when it carried one. */
++    readonly errorCode?: string;
+     /** The first failed member's requested provider, when one was named. */
+     readonly requestedProvider?: string;
+     /** The first failed member's requested model, when one was named. */

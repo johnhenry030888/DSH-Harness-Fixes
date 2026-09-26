@@ -1,0 +1,197 @@
+--- pristine/subagent/lib/index.js
++++ installed/subagent/lib/index.js
+@@ -1751,58 +1751,150 @@
+ 	return a === b || a.startsWith(`${b}${sep}`) || b.startsWith(`${a}${sep}`);
+ }
+ /**
+-* Live write-capable direct children of `parent` that are actively running
+-* against a tree overlapping the requested read-only child's tree.
++* Absolute filesystem paths an instruction text names, normalized and in
++* first-seen order. A delegation prompt is the only place a lane states the
++* tree it will read, so it is the honest source of that lane's read scope
++* (bug 026: keying the ordering guard on the session cwd refused a review
++* aimed entirely outside the live writer's tree). URLs are stripped first
++* because their path component is not a filesystem tree, and well-known
++* system roots are dropped because every prompt names one.
++*/
++const DECLARED_PATH_ROOTS = /* @__PURE__ */ new Set([
++	"/usr",
++	"/bin",
++	"/sbin",
++	"/lib",
++	"/lib64",
++	"/etc",
++	"/dev",
++	"/proc",
++	"/sys",
++	"/boot",
++	"/opt",
++	"/snap",
++	"/nix",
++	"/System",
++	"/Applications",
++	"/Windows"
++]);
++function declaredTreePaths(text) {
++	const cleaned = text.replace(/[a-z][a-z0-9+.-]*:\/\/\S+/gi, " ");
++	const found = /* @__PURE__ */ new Set();
++	for (const match of cleaned.matchAll(/(?:^|[\s"'`([{<,;:=])(\/(?:[A-Za-z0-9._@+-]+\/)*[A-Za-z0-9._@+-]+)/g)) {
++		const candidate = match[1].replace(/[.,;:!?]+$/, "");
++		if (candidate.length < 2) continue;
++		const normalized = resolve(candidate);
++		if (normalized === "/") continue;
++		if ([...DECLARED_PATH_ROOTS].some((root) => normalized === root || normalized.startsWith(`${root}${sep}`))) continue;
++		found.add(normalized);
++	}
++	return [...found];
++}
++/**
++* The trees one live agent's own instructions declare: the absolute paths in
++* the child's first delegation prompt, with its workspace only as the fallback
++* when that prompt declares none. Preferring the declared paths is what keeps
++* a writer that names a subdirectory of the session cwd from blocking every
++* read-only lane under that cwd; the scan is bounded to the first 24 events
++* (creation bookkeeping precedes the prompt) so transcript cost stays constant.
++* @param agent - the live agent whose declared work is read.
++* @returns absolute path prefixes in first-seen order.
++*/
++function declaredTreesOf(agent) {
++	const trees = /* @__PURE__ */ new Set();
++	const limit = Math.min(agent.session.seq, 24);
++	for (const event of agent.session.snapshotEvents(0, limit)) {
++		if (event.type !== "user/message") continue;
++		for (const block of event.data.content ?? []) if (block.type === "text" && typeof block.text === "string") for (const path of declaredTreePaths(block.text)) trees.add(path);
++		break;
++	}
++	if (trees.size === 0 && agent.session.header.cwd !== void 0) trees.add(resolve(agent.session.header.cwd));
++	return [...trees];
++}
++/**
++* The trees one requested delegation's prompt declares, if any.
++* @param prompt - the request's content blocks.
++* @returns absolute path prefixes in first-seen order.
++*/
++function declaredPromptTrees(prompt) {
++	const trees = /* @__PURE__ */ new Set();
++	for (const block of prompt ?? []) if (block.type === "text" && typeof block.text === "string") for (const path of declaredTreePaths(block.text)) trees.add(path);
++	return [...trees];
++}
++/**
++* Live write-capable direct children of `parent` whose declared work overlaps
++* the requested read-only lane's declared read scope.
+ *
+-* "Write-capable" is read from the session's resolved sandbox policy — the
+-* same `sandbox/mode` fold the enforcement dialects consume — because that is
+-* the one durable property that distinguishes a lane allowed to mutate files
+-* from bug 019's read-only lanes; the descriptor's `readOnly` flag and the
+-* policy agree by construction (`applyChildComposition` writes both). A
+-* child that already settled (status other than `running`) holds no claim: a
+-* settlement notice is the authoritative handoff the caller must wait for.
++* The read scope is the set of absolute paths the delegation's own prompt
++* names — the tree the lane will actually read — with the parent workspace as
++* the conservative fallback when a prompt declares none; the writer side is
++* the same declaration from the writer's own first prompt, with its workspace
++* as the fallback. "Write-capable" is read from the session's resolved
++* sandbox policy — the same `sandbox/mode` fold the enforcement dialects
++* consume — because that is the one durable property that distinguishes a
++* lane allowed to mutate files from bug 019's read-only lanes; the
++* descriptor's `readOnly` flag and the policy agree by construction
++* (`applyChildComposition` writes both). A child that already settled (status
++* other than `running`) holds no claim: a settlement notice is the
++* authoritative handoff the caller must wait for.
+ * @param ctx - context that may carry the live Agent registry and sandbox policy.
+ * @param parent - the delegating parent whose direct children are inspected.
+ * @param readOnlyRequested - the requested child's read-only flag.
+-* @returns the conflicting live agents, in registry order.
++* @param readTrees - absolute paths the requested delegation declares, if any.
++* @returns one `{agent, readerTree, writerTree}` per conflict, in registry order.
+ */
+-function inspectionConflicts(ctx, parent, readOnlyRequested) {
++function inspectionConflicts(ctx, parent, readOnlyRequested, readTrees) {
+ 	if (readOnlyRequested !== true) return [];
+ 	const agents = ctx.get("agents");
+ 	if (agents === void 0) return [];
+ 	const sandboxPolicy = ctx.get("sandboxPolicy");
+-	const tree = parent.session.header.cwd;
++	const readerTrees = readTrees !== void 0 && readTrees.length > 0 ? readTrees : [parent.session.header.cwd];
+ 	const conflicts = [];
+ 	for (const candidate of agents.list()) {
+ 		if (candidate === parent) continue;
+ 		if (candidate.session.header.parentSession !== parent.session.header.id) continue;
+ 		if (candidate.status !== "running") continue;
+ 		if (sandboxPolicy?.overrideOf(candidate.session) === "read-only") continue;
+-		if (!treesOverlap(tree, candidate.session.header.cwd)) continue;
+-		conflicts.push(candidate);
++		const writerTrees = declaredTreesOf(candidate);
++		let matched;
++		for (const readerTree of readerTrees) {
++			if (matched !== void 0) break;
++			for (const writerTree of writerTrees) if (treesOverlap(readerTree, writerTree)) {
++				matched = {
++					agent: candidate,
++					readerTree,
++					writerTree
++				};
++				break;
++			}
++		}
++		if (matched !== void 0) conflicts.push(matched);
+ 	}
+ 	return conflicts;
+ }
+ /**
+ * Refuse a read-only delegation while a write-capable sibling is still
+-* running against the same working tree. The verify→review ordering rule was
+-* prose until drill v10 lost three of a reviewer's findings to a concurrently
+-* live in-place verifier and v11 repeated the scheduling mistake; this is the
+-* mechanical guard. The refusal names every conflicting child so the caller
+-* can wait for its settlement notice (or interrupt_agent it) and retry the
+-* exact same read-only call unchanged. Trees outside the parent's path prefix
+-* are unaffected.
++* running against the same declared target path. The verify→review ordering
++* rule was prose until drill v10 lost three of a reviewer's findings to a
++* concurrently live in-place verifier and v11 repeated the scheduling mistake;
++* this is the mechanical guard. The refusal names every conflicting child and
++* the tested target prefix (bug 026: the paths the lane's own prompt declares,
++* not the session cwd) so the caller can wait for the settlement notice (or
++* interrupt_agent it) and retry the exact same read-only call unchanged. A
++* read-only lane whose declared paths overlap no live writer is admitted.
+ * @param ctx - context carrying the live Agent registry and sandbox policy.
+ * @param parent - the delegating parent starting the read-only child.
+ * @param readOnlyRequested - the requested child's read-only flag.
++* @param prompt - the requested delegation's prompt, the target-path source.
+ * @throws {SubagentError} `INSPECTION_CONFLICT` naming the live writer(s).
+ */
+-function assertInspectionOrdering(ctx, parent, readOnlyRequested) {
+-	const conflicts = inspectionConflicts(ctx, parent, readOnlyRequested);
++function assertInspectionOrdering(ctx, parent, readOnlyRequested, prompt) {
++	const conflicts = inspectionConflicts(ctx, parent, readOnlyRequested, declaredPromptTrees(prompt));
+ 	if (conflicts.length === 0) return;
+-	const named = conflicts.map((agent) => `"${agent.id}"`).join(", ");
+-	const tree = parent.session.header.cwd === void 0 ? "(the parent session workspace)" : `"${resolve(parent.session.header.cwd)}"`;
+-	throw new SubagentError(`subagent: refused a read-only delegation while write-capable ${conflicts.length === 1 ? "agent" : "agents"} ${named} ${conflicts.length === 1 ? "is" : "are"} still running against the same tree ${tree} — a read-only review must not overlap a lane that may still mutate it. Wait for the child's settlement notice, or interrupt_agent it, then retry the same read-only call unchanged; trees outside this path prefix are unaffected.`, "INSPECTION_CONFLICT");
++	const named = conflicts.map((conflict) => `"${conflict.agent.id}"`).join(", ");
++	const target = conflicts[0].readerTree === void 0 ? "(the parent session workspace)" : `"${conflicts[0].readerTree}"`;
++	const writerTree = conflicts[0].writerTree === void 0 ? "(its workspace)" : `"${conflicts[0].writerTree}"`;
++	throw new SubagentError(`subagent: refused a read-only delegation while write-capable ${conflicts.length === 1 ? "agent" : "agents"} ${named} ${conflicts.length === 1 ? "is" : "are"} still running against the same target path ${target} — the writer's declared work covers ${writerTree}, which overlaps the read scope this delegation's prompt declares. A review must not overlap a lane that may still mutate what it reads. Wait for the child's settlement notice, or interrupt_agent it, then retry the same read-only call unchanged; a read-only lane whose declared paths do not overlap any live writer's is admitted.`, "INSPECTION_CONFLICT");
+ }
+ //#endregion
+ /**
+@@ -3072,7 +3164,7 @@
+ 		* @throws when continuation services are unavailable or materialization fails.
+ 		*/
+ 		async startContinuable(spec) {
+-			assertInspectionOrdering(this.ctx, spec.request.parent, spec.request.readOnly);
++			assertInspectionOrdering(this.ctx, spec.request.parent, spec.request.readOnly, spec.request.prompt);
+ 			return this.requireContinuations().startContinuable(spec);
+ 		}
+ 		/**
+@@ -3337,7 +3429,7 @@
+ 		* @returns the published holder-owned run.
+ 		*/
+ 		async start(name, request) {
+-			assertInspectionOrdering(this.ctx, request.parent, request.readOnly);
++			assertInspectionOrdering(this.ctx, request.parent, request.readOnly, request.prompt);
+ 			const provider = this.expectProvider(name);
+ 			this.assertCapabilities(provider, request);
+ 			assertSubagentMaxDepth(request.maxDepth);

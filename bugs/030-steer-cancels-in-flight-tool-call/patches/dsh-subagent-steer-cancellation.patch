@@ -1,0 +1,97 @@
+--- pristine/subagent/lib/index.js
++++ installed/subagent/lib/index.js
+@@ -583,6 +583,7 @@
+ 	if (restriction !== void 0 && restriction.removed.length > 0) layerLines.push(`This layer's toolFilter removed ${restriction.removed.length === 1 ? "this tool" : "these tools"}: ${restriction.removed.map((name) => `"${name}"`).join(", ")}. They are absent from this layer; do not attempt them even when inherited instructions name them.`);
+ 	if (restriction !== void 0 && restriction.limited !== void 0) layerLines.push(`This layer's toolFilter limits the visible tools to: ${restriction.limited.map((name) => `"${name}"`).join(", ")}; every other tool an inherited instruction may name is unavailable here.`);
+ 	if (composition.readOnly === true) layerLines.push("This layer is read-only: edit, write and present are refused, and shell commands run under a read-only file policy, so nothing may be modified anywhere.");
++	layerLines.push("A send_message steer from the parent cancels this layer's in-flight tool call and replans with the message at the resulting boundary (cancel-then-replan; a tool that ignores its cancellation signal may still finish), so keep long or destructive calls short when redirection is possible.");
+ 	childCtx.systemPrompt.context({
+ 		name: "subagent:layer",
+ 		order: childCtx.systemPrompt.getContextOrder("SUBAGENT_LAYER") ?? 118,
+@@ -810,9 +811,9 @@
+ 	* @param message - the accepted input to submit.
+ 	* @param delivery - whether to queue a distinct turn or steer the nearest step.
+ 	*/
+-	deliver(message, delivery) {
++	deliver(message, delivery, options) {
+ 		if (this.closingPromise !== void 0) throw new SubagentError(`subagent "${this.agent.id}" activation is being disposed; the message was not accepted`, "ACTIVATION_CLOSING");
+-		if (delivery === "steer") this.agent.steer(message);
++		if (delivery === "steer") this.agent.steer(message, options);
+ 		else this.agent.followup(message);
+ 	}
+ 	/**
+@@ -964,17 +965,17 @@
+ 	* @param message - durable user message to deliver.
+ 	* @param delivery - receiving inbox destination.
+ 	*/
+-	sendWaking(parent, message, delivery) {
++	sendWaking(parent, message, delivery, options) {
+ 		const parentActivation = this.resident.get(parent.id);
+ 		if (parentActivation !== void 0 && parentActivation.handle.agent === parent) {
+ 			try {
+-				parentActivation.inbox.deliver(message, delivery);
++				parentActivation.inbox.deliver(message, delivery, options);
+ 			} finally {
+ 				this.wake(parentActivation);
+ 			}
+ 			return;
+ 		}
+-		if (delivery === "steer") parent.steer(message);
++		if (delivery === "steer") parent.steer(message, options);
+ 		else parent.followup(message);
+ 	}
+ 	/**
+@@ -1089,13 +1090,13 @@
+ 	* @param signal - caller cancellation before inbox acceptance.
+ 	* @returns the accepted durable message id.
+ 	*/
+-	submitAdmitted(activation, message, delivery, parent, signal) {
++	submitAdmitted(activation, message, delivery, parent, signal, interruptToolCall) {
+ 		signal.throwIfAborted();
+ 		this.assertAdmitting(parent);
+ 		this.authorizeLineage(parent, activation.childId, activation.handle.agent.session.header.parentSession);
+ 		this.acquireOwnership(parent, activation.childId);
+ 		try {
+-			activation.inbox.deliver(message, delivery);
++			activation.inbox.deliver(message, delivery, interruptToolCall === true ? { interruptToolCall: true } : void 0);
+ 		} finally {
+ 			this.wake(activation);
+ 		}
+@@ -2035,7 +2036,8 @@
+ 		if (sender.session.header.parentSession === targetId) throw new SubagentError(`agent "${sender.id}" is not a resident continuable child and cannot send to parent "${targetId}"`, "UNAUTHORIZED");
+ 		return this.deliverToChild(sender, targetId, content, {
+ 			signal: options.signal,
+-			delivery: "steer"
++			delivery: "steer",
++			interruptToolCall: true
+ 		});
+ 	}
+ 	/**
+@@ -2067,7 +2069,8 @@
+ 		return this.deliverToChild(parent, childId, content, {
+ 			source,
+ 			signal,
+-			delivery: "steer"
++			delivery: "steer",
++			interruptToolCall: true
+ 		});
+ 	}
+ 	/** Route one parent-originated delivery through residency and cold resume. */
+@@ -2132,7 +2135,7 @@
+ 	/** Send one Agent message while translating only the target's own rejection. */
+ 	sendAgentMessage(parent, message) {
+ 		try {
+-			this.activations.sendWaking(parent, message, "steer");
++			this.activations.sendWaking(parent, message, "steer", { interruptToolCall: true });
+ 		} catch (error) {
+ 			throw new SubagentError("direct parent is not live; the message was not delivered", "PARENT_UNAVAILABLE", { cause: error });
+ 		}
+@@ -2238,7 +2241,7 @@
+ 			content,
+ 			source: options.source
+ 		});
+-		return this.activations.submitAdmitted(activation, message, options.delivery, parent, options.signal);
++		return this.activations.submitAdmitted(activation, message, options.delivery, parent, options.signal, options.interruptToolCall === true);
+ 	}
+ 	/** Refuse image content for a child whose fixed model accepts text only. */
+ 	async assertImageCapable(agent, signal) {
