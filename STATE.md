@@ -36,8 +36,10 @@
     pitfall.
   - **Drill v16 written** (`~/Desktop/orchestrator-drill-prompt-v16.md`): the
     closure run — one real end-to-end task through the whole lane set
-    (partition → build → verify → review → merge) with telemetry, plus a short
-    regression sweep and the two open frictions re-checked.
+    (partition → build → verify + falsification → review → lead merge), a
+    two-stage `workflow` sub-task, an efficiency-telemetry table (wall clock per
+    phase, prompt sizes, tokens, steers/retries), a short regression sweep, and
+    the two open frictions re-checked as observations.
 - Earlier this turn (2026-09-26, drill v14 follow-up):
   - **drill v14 results (report on the Desktop): 21 PASS / 1 FAIL / 7 NOT RUN.**
     Closed live: 007 (probe, both variants), 020, 027 (161 = header on direct /
