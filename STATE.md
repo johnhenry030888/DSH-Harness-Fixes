@@ -4,11 +4,43 @@
 
 - Objective: Batch project for DeepSeek Harness bug fixes
 - Stack: polyglot | Features: none
-- Phase: **all thirty local fixes applied** to `dsh` 0.1.5-rc.2 (batch 5 —
+- Phase: **all thirty-one local fixes applied** to `dsh` 0.1.5-rc.2 (batch 5 —
   016, 020, 026-030 — landed from drill v12's findings plus the orchestrator
   efficiency pass). Drill v13 then closed fix 011: **ten clean
   `standard → orchestrator` switch samples**, no 176-tool mount in any.
-- What changed this turn (2026-09-26, batch 5 + repo hygiene):
+- What changed this turn (2026-09-26, drill v14 follow-up):
+  - **drill v14 results (report on the Desktop): 21 PASS / 1 FAIL / 7 NOT RUN.**
+    Closed live: 007 (probe, both variants), 020, 027 (161 = header on direct /
+    workflow / fork), 028 (`UNKNOWN_MODEL` on both paths), 029 (555-char worker
+    persona, no lane map), 030 (steer → reply in 4.1 s behind a 90 s sleep,
+    `AbortError`/`ABORTED`). Its single FAIL: 016's `catalog: true` was silently
+    accepted with `provider`/`model`.
+  - **016b** (new, 31st fix; `dsh-tool-subagent`): the catalog branch now refuses
+    route arguments by name and the tool description states the rule. Verified
+    **live** on a freshly booted process via a second `dsh web`: both mixed calls
+    rejected with the named message, while `{catalog:true}` alone still returned
+    `{count:178,names:178}` and `{provider}` alone still listed 8 routes.
+  - **020b** (helper, `bugs/020…/scripts/dsh-local-session.mjs`): a prompted run
+    now waits for the first `turn/end` and reports `turnCompleted`,
+    `headerToolCount`, `assistantText`, `turnEndReason`, `waitedMs`. Two real
+    defects were found and fixed while validating it: the store is **multi-frame**
+    zstd (Node's single-shot `zstdDecompressSync` returned 198 B of a 47 KB
+    transcript, so the wait never saw `turn/end`) and the wait must happen before
+    the SIGTERM. Verified live: `headerToolCount: 178`, `waitedMs: 16958`.
+  - **Persona corrected again** (backup `agent.cordis.yml.pre-v15-20260926`):
+    the steering band is now stated as model-bound with v14's numbers, the mount
+    tripwire names `list_subagent_models({catalog:true})` as the authoritative
+    self-count (and as a standalone mode), and delegation-failure attribution
+    points at `tool/result.error.code` / `workflow … errorCode`, never the
+    descriptor.
+  - **Drill v15 written** (`~/Desktop/orchestrator-drill-prompt-v15.md`):
+    required phases for the never-observed fixes — 001 (goal-round ask), 002 (MCP
+    `${VAR}` expansion via the github + postgres servers), 004 (Codex sign-in
+    entry, operator-assisted), 010a/b/c (job-tool teaching hint, `checkedAt`,
+    own route), 019/021/025 (one read-only-lane pytest phase), plus 016b and
+    020b verification and three regressions.
+  - Stray server from a `--keep` run reaped (drill v14 friction #5).
+- Earlier this turn (2026-09-26, batch 5 + repo hygiene + 007 probe):
   - **026** (`dsh-subagent`): the 023 inspection guard now keys on the
     delegation's **declared target paths** (`declaredTreePaths` extracts
     absolute paths from the instruction text; URLs stripped, system roots

@@ -1,0 +1,24 @@
+--- pristine/tool-subagent/lib/index.js	2026-09-26 19:16:01.873142146 +0200
++++ installed/tool-subagent/lib/index.js	2026-09-26 19:16:01.874841139 +0200
+@@ -271,7 +271,7 @@
+ function registerListSubagentModels(ctx, policy) {
+ 	ctx.tools.register(defineTool({
+ 		name: "list_subagent_models",
+-		description: "Discover LLM routes for subagents without changing the current Agent. Call with no arguments to list registered providers, with `provider` to list its advertised models, or with `provider` and `model` to inspect that exact model and its reasoning efforts. Catalog membership is advisory: an adapter may accept an unlisted model id. Use the returned ids with a delegation tool's `provider`, `model`, and `reasoning_effort` fields. Set `catalog: true` to instead report this layer's own model-facing tool catalog — the authoritative advertised tool count and names as the dispatcher sees them (report that instead of hand-counting an inherited catalog).",
++		description: "Discover LLM routes for subagents without changing the current Agent. Call with no arguments to list registered providers, with `provider` to list its advertised models, or with `provider` and `model` to inspect that exact model and its reasoning efforts. Catalog membership is advisory: an adapter may accept an unlisted model id. Use the returned ids with a delegation tool's `provider`, `model`, and `reasoning_effort` fields. Set `catalog: true` to instead report this layer's own model-facing tool catalog — the authoritative advertised tool count and names as the dispatcher sees them (report that instead of hand-counting an inherited catalog). `catalog` is a standalone mode: it cannot be combined with `provider` or `model`.",
+ 		parameters: {
+ 			provider: {
+ 				type: "string",
+@@ -294,7 +294,11 @@
+ 			}]
+ 		},
+ 		execute(args, exec) {
+-			if (args.catalog === true) return listAgentCatalog(ctx, exec);
++			if (args.catalog === true) {
++				const conflicting = [args.provider === void 0 ? void 0 : "`provider`", args.model === void 0 ? void 0 : "`model`"].filter((name) => name !== void 0);
++				if (conflicting.length > 0) throw new Error(`\`catalog\` is mutually exclusive with ${conflicting.join(" and ")} — omit the route query to read this layer's own catalog, or drop \`catalog\` to query routes`);
++				return listAgentCatalog(ctx, exec);
++			}
+ 			return listSubagentModels(ctx, policy, args, exec.signal);
+ 		}
+ 	}));

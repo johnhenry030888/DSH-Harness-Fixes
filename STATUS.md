@@ -1,13 +1,14 @@
 # Status
 
-All thirty local fixes are applied to the `dsh` 0.1.5-rc.2 bundle (bugs
+All thirty-one local fixes are applied to the `dsh` 0.1.5-rc.2 bundle (bugs
 001-004 re-applied 2026-09-20; bug 005 added 2026-09-25; bugs 006-010 added
 2026-09-25 from the orchestrator drill v3/v4 findings; bugs 011-014, 018, 019
 added 2026-09-26 from drill v6/v7/v8 findings; bugs 014b, 017, 021, 022 added
 2026-09-26 from drill v9/v10 findings; bugs 023-025 added 2026-09-26 from
 drill v11 findings; bugs 016, 020, 026-030 added 2026-09-26 from drill v12
-findings and the orchestrator efficiency pass), with patches generated against
-pristine published sources and verified by pristine->reapply round-trips.
+findings and the orchestrator efficiency pass; bug 016b added 2026-09-26 from
+drill v14's single FAIL), with patches generated against pristine published
+sources and verified by pristine->reapply round-trips.
 
 Deployment note (2026-09-26): `~/.dsh/settings.yaml` now **deliberately**
 re-pins the eight `opencode-go.models` entries, so `llm.listModels()` serves the
@@ -22,6 +23,16 @@ Verification note (2026-09-26, drill v13): fix 011 is **CLOSED** — ten clean
 `standard → orchestrator` switch samples on file
 (`~/Desktop/orchestrator-switch-path-log.md`), every one corroborated at
 transcript level, no 176-tool mount.
+
+Verification note (2026-09-26, drill v14): **21 PASS / 1 FAIL / 7 NOT RUN**. The
+FAIL is fixed as **016b** above (and re-verified live). Drill v14 also closed
+**007** live, confirmed **020, 027, 028, 029, 030** (030 measured 4.1 s from
+steer to reply behind a 90 s sleep), and reported two harness-side frictions
+that are now fixed in the helper: the 020 helper could not corroborate its own
+session (`session/prompt` queues, and the store is multi-frame zstd) — it now
+waits for the first `turn/end` and reports `headerToolCount`/`assistantText`
+(verified live: 178 in one call, `waitedMs` 16 958). Drill v15 covers the
+remaining never-observed fixes: 001, 002, 004, 010a/b/c, 019, 021, 025.
 
 Verification note (2026-09-26, bug 007): the fix now has a **re-runnable live
 probe** — `bugs/007-toolfilter-unknown-name-outage/scripts/drill-007-probe.sh`
@@ -65,6 +76,7 @@ carries the outstanding live probes for 016, 020, 027, 028, 029 and 030.
 | [029](bugs/029-compact-worker-persona/README.md) | every child inherits the lead's full ~20.4 k-char persona (per-child token cost + the seeded-fork impersonation hazard) | APPLIED to bundle 0.1.5-rc.2 (child composition installs a compact ~520-char worker persona naming role, parent, filter and return contract; a row's own `persona` is honoured when set) | NOT-FILED |
 | [030](bugs/030-steer-cancels-in-flight-tool-call/README.md) | a steer cannot interrupt an in-flight tool call (62 s worst case; a long call is un-steerable) | APPLIED to bundle 0.1.5-rc.2 (cancel-then-replan: `AgentLoop` tracks `inFlightToolCalls` around `executeToolCalls()` and a steer cancels them, delivering the message at the resulting boundary) | NOT-FILED |
 | [016](bugs/016-catalog-self-query/README.md) | no way to query one's own catalog (the lead hand-counts 177 vs 178; children report 161 or 137) | APPLIED to bundle 0.1.5-rc.2 (`list_subagent_models({catalog:true})` — a third, mutually exclusive mode returning the authoritative `{count,names}`) | NOT-FILED |
+| [016b](bugs/016b-catalog-mode-exclusivity/README.md) | `catalog: true` was silently accepted together with `provider`/`model`, so a mixed call answered the catalog question and dropped the route arguments (drill v14 §1 — the run's only FAIL) | APPLIED to bundle 0.1.5-rc.2 (the catalog branch refuses route arguments by name; the tool description states the rule; live on a freshly booted process: both mixed calls rejected with the named message while `{catalog:true}` alone still returned 178/178 and `{provider}` alone still listed 8 routes) | NOT-FILED |
 | [020](bugs/020-scriptable-session-creation/README.md) | no scriptable local session creation: every switch-path/preset probe costs the operator manual GUI work | APPLIED (helper + documented path; no harness code change — auth untouched) | NOT-FILED |
 
 ## Legend

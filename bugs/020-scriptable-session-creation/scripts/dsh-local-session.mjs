@@ -25,16 +25,29 @@
  *   --prompt <text>     send one user prompt after creating the session
  *   --token-file <p>    write the authenticated URL (with token) to <p>, mode 0600
  *   --timeout <ms>      startup timeout (default 60000)
+ *   --turn-timeout <ms> bound on waiting for the prompted turn (default: max(timeout, 120000))
+ *   --no-wait           return as soon as the prompt is QUEUED (see below)
  *   --json              print one JSON result object and nothing else
  *   --keep              keep the Web app running; print the URL and cookie for follow-ups
  *
+ * `session/prompt` queues (`mode: "queue"`), so `prompted: true` alone means the
+ * message was accepted, not answered — and killing the server right after it
+ * leaves the turn at `turn/start` with no `request/header`. Unless `--no-wait`
+ * is passed, a prompted run therefore reads the session transcript (under
+ * `<home>/sessions/<cwd-bucket>/<sessionId>/session.v3.jsonl.zstd`, via Node's
+ * `zstd` CLI) until the first `turn/end` and reports `turnCompleted`,
+ * `headerToolCount`, `assistantText` and `waitedMs` beside the ids. The wait is
+ * bounded by `--turn-timeout`; a timed-out wait still exits 0 with whatever it
+ * observed, so a caller can tell "queued" from "answered".
+ *
  * Exit code 0 only when the session was created; 1 on any failure.
  */
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join, resolve } from "node:path";
+import * as zlib from "node:zlib";
 
 function parseArgs(argv) {
   const args = {};
@@ -70,6 +83,13 @@ function parseArgs(argv) {
         args.timeout = Number(next);
         i++;
         break;
+      case "--turn-timeout":
+        args.turnTimeout = Number(next);
+        i++;
+        break;
+      case "--no-wait":
+        args.noWait = true;
+        break;
       case "--json":
         args.json = true;
         break;
@@ -85,6 +105,82 @@ function parseArgs(argv) {
     }
   }
   return args;
+}
+
+/** The session's transcript under the harness home, wherever its cwd bucket is. */
+function findTranscript(root, sessionId) {
+  try {
+    for (const bucket of readdirSync(root)) {
+      const candidate = join(root, bucket, sessionId, "session.v3.jsonl.zstd");
+      if (existsSync(candidate)) return candidate;
+    }
+  } catch {
+    // the store does not exist yet: still nothing to read
+  }
+  return undefined;
+}
+
+/**
+ * Decompress a transcript. The store appends one zstd frame per flush, so the
+ * CLI (`zstd -dc`, all frames) is the primary path: Node's single-shot
+ * `zstdDecompressSync` stops at the first frame and would hide the turn end.
+ * It is kept as a fallback for hosts without the CLI, where a truncated read
+ * only costs the caller a timed-out wait.
+ */
+function decompress(file) {
+  const out = spawnSync("zstd", ["-dc", file], { maxBuffer: 512 * 1024 * 1024 });
+  if (out.status === 0) return out.stdout.toString("utf8");
+  if (typeof zlib.zstdDecompressSync === "function") {
+    try {
+      return zlib.zstdDecompressSync(readFileSync(file)).toString("utf8");
+    } catch {
+      // torn tail while the turn is still writing
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Wait for the prompted turn to end, reporting what the session advertised.
+ * `session/prompt` only queues, so this is the difference between "accepted"
+ * and "answered" — and the header count is the composition proof a drill needs.
+ */
+async function awaitFirstTurn(root, sessionId, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  let observed = { turnCompleted: false };
+  for (;;) {
+    const file = findTranscript(root, sessionId);
+    if (file !== undefined) {
+      const text = decompress(file);
+      if (text !== undefined) {
+        const records = [];
+        for (const line of text.split("\n")) {
+          if (line.trim().length === 0) continue;
+          try {
+            records.push(JSON.parse(line));
+          } catch {
+            // a partially written tail record is expected while the turn runs
+          }
+        }
+        const header = records.find((record) => record.type === "request/header");
+        const ended = records.find((record) => record.type === "turn/end");
+        const assistant = records.findLast((record) => record.type === "assistant/message");
+        const textBlocks =
+          assistant?.data?.message?.content?.filter((block) => block.type === "text") ?? [];
+        observed = {
+          turnCompleted: ended !== undefined,
+          ...(header === undefined ? {} : { headerToolCount: header.data.header.tools.length }),
+          ...(textBlocks.length === 0
+            ? {}
+            : { assistantText: textBlocks.map((block) => block.text).join("\n") }),
+          ...(ended === undefined ? {} : { turnEndReason: ended.data.reason }),
+        };
+        if (ended !== undefined) return observed;
+      }
+    }
+    if (Date.now() >= deadline) return observed;
+    await new Promise((resume) => setTimeout(resume, 500));
+  }
 }
 
 /** Wait for the `dsh web: <url>` line on stdout, or fail the startup bound. */
@@ -163,6 +259,10 @@ async function main() {
   }
   const port = Number.isInteger(args.port) ? args.port : 0;
   const timeoutMs = Number.isInteger(args.timeout) ? args.timeout : 60000;
+  const turnTimeoutMs = Number.isInteger(args.turnTimeout)
+    ? args.turnTimeout
+    : Math.max(timeoutMs, 120000);
+  const homeDir = resolve(args.home ?? process.env.DSH_HOME ?? join(homedir(), ".dsh"));
   const cwd = resolve(args.cwd ?? process.cwd());
   const env = { ...process.env };
   if (args.home !== undefined) env.DSH_HOME = resolve(args.home);
@@ -186,6 +286,7 @@ async function main() {
       request: { cwd, ...(args.preset === undefined ? {} : { agentPreset: args.preset }) },
     });
     let prompted = false;
+    let observed = {};
     if (args.prompt !== undefined) {
       await rpc(baseUrl.href, cookie, "session/prompt", {
         request: {
@@ -196,6 +297,15 @@ async function main() {
         },
       });
       prompted = true;
+      if (args.noWait !== true) {
+        const started = Date.now();
+        observed = await awaitFirstTurn(
+          join(homeDir, "sessions"),
+          created.sessionId,
+          turnTimeoutMs,
+        );
+        observed.waitedMs = Date.now() - started;
+      }
     }
     const result = {
       sessionId: created.sessionId,
@@ -203,6 +313,7 @@ async function main() {
       cwd,
       baseUrl: baseUrl.href,
       prompted,
+      ...observed,
     };
     if (args.json) console.log(JSON.stringify(result));
     else {

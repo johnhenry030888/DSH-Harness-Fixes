@@ -59,6 +59,34 @@ node scripts/dsh-local-session.mjs --home <DSH_HOME> --cwd <dir> \
   for follow-ups; `--token-file <p>` writes the authenticated URL at mode
   `0600` for other loopback tooling.
 
+### Turn-aware runs (2026-09-26, drill v14 friction #2)
+
+`session/prompt` **queues** (`mode: "queue"`), so `prompted: true` means the
+message was accepted, not answered — and the pre-update helper SIGTERMed the
+server immediately after queueing, leaving the session at `turn/start` with no
+`request/header` for a caller to corroborate. A prompted run now waits for the
+session's first `turn/end` and reports the composition alongside the ids:
+
+```json
+{"sessionId":"session-…","agentPreset":"orchestrator","prompted":true,
+ "turnCompleted":true,"headerToolCount":178,
+ "assistantText":"…","turnEndReason":{"kind":"completed"},"waitedMs":16958}
+```
+
+- the wait is bounded by `--turn-timeout` (default `max(--timeout, 120000)`); a
+  timed-out wait still exits 0 with whatever it observed, so "queued" and
+  "answered" are distinguishable;
+- `--no-wait` restores the old return-immediately behaviour;
+- the transcript is read from `<home>/sessions/<cwd-bucket>/<sessionId>/`
+  `session.v3.jsonl.zstd` with the `zstd` CLI, because the store appends **one
+  frame per flush** and Node's single-shot `zstdDecompressSync` stops at the
+  first frame (observed: 198 bytes of a 47 KB transcript, no `turn/end`). The
+  CLI is required for a reliable wait; without it the read is truncated and the
+  wait simply times out.
+
+Omitting `--home` uses the caller's `DSH_HOME` (or `~/.dsh`), i.e. the **real**
+harness home — pass `--home` for an isolated run.
+
 Authentication is untouched: the helper is a client of the existing fence, not
 a bypass. The only optional file it writes is caller-chosen.
 
@@ -84,3 +112,9 @@ See `EVIDENCE.md`: the helper created an Orchestrator session on a scratch
 `DSH_HOME` with the preset copy; the unauthenticated control probe returned
 401; the created session appears in the scratch home's session store with
 `agentPreset: orchestrator` in its header.
+
+Live (2026-09-26, real harness home, `--preset orchestrator`): one call returned
+`turnCompleted: true`, `headerToolCount: 178`, `assistantText` from the prompted
+turn, in `waitedMs: 16958` (34.8 s wall, including server start), with no stray
+server left behind — i.e. the drill no longer needs a second `--keep` run to see
+the header it asserts on.
