@@ -25,6 +25,23 @@ Verification note (2026-09-26, drill v13): fix 011 is **CLOSED** — ten clean
 corroborated at
 transcript level, no 176-tool mount.
 
+Verification note (2026-09-26, drill v20, closure run): **every correctness and
+evidence bar MET; two cost bars missed, both self-inflicted by the lead's own
+return schemas.** Met: spec gate ran before the builders saw it
+(`rows=13 inconsistent=0`), 15/15 mutants killed with **0 falsifiable survivors**
+(the single survivor was proven falsifiable with an exact input, closed by one
+added test, and independently re-verified), review by a non-authoring family
+reproduced **15/15** verdicts, the pinned fan-out worked exactly as predicted
+(candidates at row-pinned `low` while the lead ran `max`, merge **71.2 s /
+10 520 tokens**), preflight 60 s, 0 duplicate measurement lanes, 0 false failures,
+artifact directory clean. `workflow` was **not used at all** — the pinned-rows rule
+replaced it. Missed: lead input share **45.00 %** (bar 17 %) because the lead asked
+for complete unified diffs of a 270-line suite and full tables from every lane, and
+total wall 1 539 s (bar 1 500); the candidate barrier missed 300 s (349.8 s) on a
+3.8x latency spread between two equally-pinned `low` lanes — pinning effort
+equalises effort, not latency. The 027-banner observation from v19 is **closed**:
+the count sentence is present and correct ("This layer advertises 161 tools").
+
 Verification note (2026-09-26, drill v19, cost-discipline run): **the doctrine
 paid.** Lead input share fell **26.7 % -> 15.32 %** (v16 15.6 %), the preflight
 fell **145 s -> 25 s**, and the lead's own model calls fell **62 -> 27** (only 5

@@ -8,6 +8,43 @@
   016, 020, 026-030 — landed from drill v12's findings plus the orchestrator
   efficiency pass). Drill v13 then closed fix 011: **ten clean
   `standard → orchestrator` switch samples**, no 176-tool mount in any.
+- What changed this turn (2026-09-26, drill v20 follow-up):
+  - **drill v20: all correctness/evidence bars met, two cost bars missed — and the
+    misses are the lead's own doing.** Met: clause/row gate before the builders,
+    15/15 mutants killed with **0 falsifiable survivors** (the one survivor was
+    proven falsifiable with `tokenize(["ab"])`, closed by a single added test and
+    independently re-verified), review reproduced 15/15, pinned fan-out at
+    row-`low` while the lead ran `max` with a **71.2 s / 10 520-token** merge,
+    60 s preflight, 0 duplicate measurement lanes, 0 false failures, clean
+    artifact dir. `workflow` was **not used at all** — the pinned-rows rule
+    replaced it. Missed: lead input share **45.00 %** (bar 17 %, because the lead
+    asked for complete unified diffs of a 270-line file and full tables) and total
+    wall 1 539 s (bar 1 500); candidate barrier 349.8 s (bar 300) from a 3.8x
+    latency spread between two equally-pinned `low` lanes.
+  - **Persona corrected (backup `agent.cordis.yml.pre-v21-20260926`, five
+    sentences):** **cap every child's return** (write the diff/table to a file and
+    return its sha256 plus ≤20 lines; a diff is a full-file dump once the file is
+    large; the lead reads artifacts by hash, not into context); pinning effort
+    equalises effort **not latency**, so match lanes by measured latency or compose
+    so the slow item does not gate; the machine check must be **clause-aware**
+    (v20's C5 prose contradicted itself and only a builder caught it); time-box
+    lanes from their **measured** cost (a 15-mutant verify ≈ 300 s before the
+    audit); and delegate the *independent accounting parse* too (v20's lead
+    parsed its own merge ledger wrong and spent 89.8 s / 2 425 tokens redoing it).
+  - **027 banner observation closed:** the numeric count sentence is present and
+    correct (v20: "This layer advertises 161 tools" — matching the independently
+    measured header count), so v19's sighting without a count was the anomaly.
+  - **Open harness items stay at six**, unchanged in substance and now
+    non-blocking (the pinned-rows rule means `agent()`'s missing `effort` option no
+    longer costs anything): (1) `agent()` effort option; (2) workflow resolved
+    effort + adapter effort-or-default marker; (3) the guard's declared-scope
+    harvest (now measured: the harvested scope can be the **drill root**, the
+    common ancestor of every referenced path, so any writer mentioning it blocks
+    every read-only lane on the drill); (4) `list_agents` declared target; (5)
+    steer delivery/boundary stamps; (6) read-only lane scratch.
+  - **Drill v21 written** (`~/Desktop/orchestrator-drill-prompt-v21.md`): the
+    closing run — the same bars with the return caps, lane-latency matching, a
+    clause-aware checker and time-boxes from measured cost.
 - What changed this turn (2026-09-26, drill v19 follow-up):
   - **drill v19: the cost-discipline fix worked.** Lead share 26.7 % -> **15.32 %**,
     preflight 145 -> **25 s**, lead calls 62 -> **27** with **zero**
