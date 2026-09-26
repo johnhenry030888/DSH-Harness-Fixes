@@ -1,0 +1,74 @@
+--- pristine/subagent/lib/index.js	2026-09-26 07:29:03.334330808 +0200
++++ installed/subagent/lib/index.js	2026-09-26 07:29:45.183823388 +0200
+@@ -553,7 +553,15 @@
+ 		order: childCtx.systemPrompt.getSectionOrder("DEPLOYMENT_PERSONA_PREFIX"),
+ 		text: composition.persona
+ 	});
+-	if (composition.toolFilter !== void 0) restrictChildTools(childCtx, composition.toolFilter, label);
++	const restriction = composition.toolFilter === void 0 ? void 0 : restrictChildTools(childCtx, composition.toolFilter, label);
++	const layerLines = [`You are a delegated child layer of agent "${parent.session.header.id}" — a continuation/subagent of that parent, NOT the orchestrator lead. Any lane map, delegation guidance, or orchestration instruction in inherited context describes the parent's layer, not this one.`];
++	if (restriction !== void 0 && restriction.removed.length > 0) layerLines.push(`This layer's toolFilter removed ${restriction.removed.length === 1 ? "this tool" : "these tools"}: ${restriction.removed.map((name) => `"${name}"`).join(", ")}. They are absent from this layer; do not attempt them even when inherited instructions name them.`);
++	if (restriction !== void 0 && restriction.limited !== void 0) layerLines.push(`This layer's toolFilter limits the visible tools to: ${restriction.limited.map((name) => `"${name}"`).join(", ")}; every other tool an inherited instruction may name is unavailable here.`);
++	childCtx.systemPrompt.context({
++		name: "subagent:layer",
++		order: childCtx.systemPrompt.getContextOrder("SUBAGENT_LAYER") ?? 118,
++		text: layerLines.join(" ")
++	});
+ }
+ /**
+ * Apply one child's tool restriction without letting a stale or
+@@ -592,6 +600,10 @@
+ 	};
+ 	if (dropped.length > 0) childCtx.logger.warn(`subagent: child ${label ?? "(unlabeled)"} toolFilter names ${dropped.length > 1 ? "tools" : "a tool"} that cannot be restricted in its scope (dropped from the filter): ${dropped.map((name) => `"${name}"`).join(", ")}; a child registers its own delegation tool and model-discovery tool in its own layer, and those names are exempt from restriction`);
+ 	childCtx.tools.restrict(sanitized);
++	return {
++		removed: sanitized.deny ?? [],
++		limited: sanitized.allow
++	};
+ }
+ /**
+ * Capture the policy to seed into one delegation. Call synchronously before
+@@ -1345,7 +1357,10 @@
+ 	"label",
+ 	"inheritedEventCount"
+ ];
+-const ONE_SHOT_DESCRIPTOR_KEYS = new Set(DESCRIPTOR_BASE_KEYS);
++const ONE_SHOT_DESCRIPTOR_KEYS = new Set([
++	...DESCRIPTOR_BASE_KEYS,
++	"toolFilter"
++]);
+ const CONTINUABLE_DESCRIPTOR_KEYS = new Set([
+ 	...DESCRIPTOR_BASE_KEYS,
+ 	"agentProvider",
+@@ -1413,11 +1428,13 @@
+ 	const inheritedEventCount = optionalCount(value, "inheritedEventCount");
+ 	if (mode === "one-shot") {
+ 		const label = optionalString(value, "label");
++		const toolFilter = Object.hasOwn(value, "toolFilter") ? parseToolFilter(value["toolFilter"]) : void 0;
+ 		return {
+ 			version: 3,
+ 			mode,
+ 			provider,
+ 			...label !== void 0 ? { label } : {},
++			...toolFilter !== void 0 ? { toolFilter } : {},
+ 			...inheritedEventCount !== void 0 ? { inheritedEventCount } : {}
+ 		};
+ 	}
+@@ -1447,6 +1464,7 @@
+ 		mode: input.mode,
+ 		provider: input.provider,
+ 		...input.label !== void 0 ? { label: input.label } : {},
++		...input.toolFilter !== void 0 ? { toolFilter: input.toolFilter } : {},
+ 		...input.inheritedEventCount !== void 0 ? { inheritedEventCount: input.inheritedEventCount } : {}
+ 	} : {
+ 		version: 3,
+@@ -3206,7 +3224,8 @@
+ 			const descriptor = snapshotSubagentDescriptor({
+ 				mode: "one-shot",
+ 				provider: name,
+-				...request.label !== void 0 ? { label: request.label } : {}
++				...request.label !== void 0 ? { label: request.label } : {},
++				...request.toolFilter !== void 0 ? { toolFilter: request.toolFilter } : {}
+ 			});
+ 			const resolved = {
+ 				...request,

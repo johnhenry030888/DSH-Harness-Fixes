@@ -1,0 +1,33 @@
+--- pristine/workflow-worker-thread/lib/worker.cjs	2026-09-26 07:28:09.554285233 +0200
++++ installed/workflow-worker-thread/lib/worker.cjs	2026-09-26 07:28:46.742693257 +0200
+@@ -433,7 +433,9 @@
+ 				seq,
+ 				label,
+ 				...phase !== void 0 ? { phase } : {},
+-				childId: (0, _deepseek_ai_dsh_brand.brandString)(run.id)
++				childId: (0, _deepseek_ai_dsh_brand.brandString)(run.id),
++				...opts.provider !== void 0 ? { requestedProvider: opts.provider } : {},
++				...opts.model !== void 0 ? { requestedModel: opts.model } : {}
+ 			};
+ 			this.observer.agentStart(info);
+ 			try {
+@@ -450,7 +452,8 @@
+ 					}
+ 					this.observer.agentEnd({
+ 						...info,
+-						outcome: "failed"
++						outcome: "failed",
++						error: renderThrown(error)
+ 					});
+ 					throw new _deepseek_ai_dsh_workflow.WorkflowError(`child agent run failed: ${renderThrown(error)}`, "AGENT_RESULT", { cause: error });
+ 				}
+@@ -484,7 +487,8 @@
+ 				}
+ 				this.observer.agentEnd({
+ 					...info,
+-					outcome: "failed"
++					outcome: "failed",
++					error: result.diagnostic ?? `child ended with stopReason "${result.stopReason}"`
+ 				});
+ 				return null;
+ 			} finally {

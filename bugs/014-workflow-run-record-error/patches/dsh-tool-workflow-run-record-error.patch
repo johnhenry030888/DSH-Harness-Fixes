@@ -1,0 +1,25 @@
+--- pristine/tool-workflow/lib/index.js	2026-09-26 07:28:09.555898068 +0200
++++ installed/tool-workflow/lib/index.js	2026-09-26 07:28:54.351815834 +0200
+@@ -54,7 +54,9 @@
+ 			seq: agent.seq,
+ 			label: agent.label,
+ 			...agent.phase === void 0 ? {} : { phase: agent.phase },
+-			childId: agent.childId
++			childId: agent.childId,
++			...agent.requestedProvider === void 0 ? {} : { requestedProvider: agent.requestedProvider },
++			...agent.requestedModel === void 0 ? {} : { requestedModel: agent.requestedModel }
+ 		})) active.delete(info.id);
+ 	});
+ 	ctx.on("workflow/agent-end", (info, agent) => {
+@@ -63,7 +65,10 @@
+ 		if (!append(session, "tool-workflow/agent-end", {
+ 			runId: info.id,
+ 			seq: agent.seq,
+-			outcome: agent.outcome
++			outcome: agent.outcome,
++			...agent.error === void 0 ? {} : { error: agent.error },
++			...agent.requestedProvider === void 0 ? {} : { requestedProvider: agent.requestedProvider },
++			...agent.requestedModel === void 0 ? {} : { requestedModel: agent.requestedModel }
+ 		})) active.delete(info.id);
+ 	});
+ 	return {

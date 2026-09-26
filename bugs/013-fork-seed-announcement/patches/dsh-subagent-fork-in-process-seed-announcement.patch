@@ -1,0 +1,20 @@
+--- pristine/subagent-fork-in-process/lib/index.js	2026-09-26 07:27:21.847775856 +0200
++++ installed/subagent-fork-in-process/lib/index.js	2026-09-26 07:27:39.348593421 +0200
+@@ -53,10 +53,14 @@
+ 		this.name = name;
+ 		this.logger = logger;
+ 	}
+-	/** Report the seed decision; an empty seed is a cold child, not an inherited one. */
++	/** Report the seed decision in both directions; the count reaches the child's descriptor and runtime context too. */
+ 	reportSeed(parent, inheritedEventCount) {
+-		if (inheritedEventCount > 0) return;
+-		this.logger?.warn(`subagent-fork-in-process: fork child of session ${parent.session.header.id} inherits 0 events — the parent has no completed turn yet (its current turn is still open), so the child starts with no inherited conversation; put the needed context in the prompt or continue an existing child with send_message instead`);
++		const parentId = parent.session.header.id;
++		if (inheritedEventCount > 0) {
++			this.logger?.info(`subagent-fork-in-process: fork child of session ${parentId} inherits ${inheritedEventCount} completed events`);
++			return;
++		}
++		this.logger?.warn(`subagent-fork-in-process: fork child of session ${parentId} inherits 0 events — the parent has no completed turn yet (its current turn is still open), so the child starts with no inherited conversation; put the needed context in the prompt or continue an existing child with send_message instead`);
+ 	}
+ 	start(request) {
+ 		const seed = completedTurnPrefix(request.parent);

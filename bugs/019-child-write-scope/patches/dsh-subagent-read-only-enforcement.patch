@@ -1,0 +1,145 @@
+--- pristine/subagent/lib/index.js	2026-09-26 07:29:45.266349536 +0200
++++ installed/subagent/lib/index.js	2026-09-26 07:30:19.758680712 +0200
+@@ -554,9 +554,21 @@
+ 		text: composition.persona
+ 	});
+ 	const restriction = composition.toolFilter === void 0 ? void 0 : restrictChildTools(childCtx, composition.toolFilter, label);
++	if (composition.readOnly === true) {
++		childCtx.tools.guard((exec) => {
++			if (exec.name !== "edit" && exec.name !== "write" && exec.name !== "present") return;
++			const path = exec.arguments?.filePath;
++			return `subagent: read-only child "${label ?? "(unlabeled)"}" refuses tool "${exec.name}"${typeof path === "string" ? ` for path "${path}"` : ""}: this delegation lane is read-only (readOnly: true), so no file may be modified; allowed write paths: none. Read the target and report the finding instead.`;
++		});
++		scopeOf(childCtx)?.session.append("sandbox/mode", {
++			mode: "read-only",
++			source: "delegation"
++		});
++	}
+ 	const layerLines = [`You are a delegated child layer of agent "${parent.session.header.id}" — a continuation/subagent of that parent, NOT the orchestrator lead. Any lane map, delegation guidance, or orchestration instruction in inherited context describes the parent's layer, not this one.`];
+ 	if (restriction !== void 0 && restriction.removed.length > 0) layerLines.push(`This layer's toolFilter removed ${restriction.removed.length === 1 ? "this tool" : "these tools"}: ${restriction.removed.map((name) => `"${name}"`).join(", ")}. They are absent from this layer; do not attempt them even when inherited instructions name them.`);
+ 	if (restriction !== void 0 && restriction.limited !== void 0) layerLines.push(`This layer's toolFilter limits the visible tools to: ${restriction.limited.map((name) => `"${name}"`).join(", ")}; every other tool an inherited instruction may name is unavailable here.`);
++	if (composition.readOnly === true) layerLines.push("This layer is read-only: edit, write and present are refused, and shell commands run under a read-only file policy, so nothing may be modified anywhere.");
+ 	childCtx.systemPrompt.context({
+ 		name: "subagent:layer",
+ 		order: childCtx.systemPrompt.getContextOrder("SUBAGENT_LAYER") ?? 118,
+@@ -1359,7 +1371,8 @@
+ ];
+ const ONE_SHOT_DESCRIPTOR_KEYS = new Set([
+ 	...DESCRIPTOR_BASE_KEYS,
+-	"toolFilter"
++	"toolFilter",
++	"readOnly"
+ ]);
+ const CONTINUABLE_DESCRIPTOR_KEYS = new Set([
+ 	...DESCRIPTOR_BASE_KEYS,
+@@ -1367,7 +1380,8 @@
+ 	"agentModel",
+ 	"agentReasoningEffort",
+ 	"persona",
+-	"toolFilter"
++	"toolFilter",
++	"readOnly"
+ ]);
+ const TOOL_FILTER_KEYS = new Set(["allow", "deny"]);
+ /** Whether a persisted JSON value is an object record. */
+@@ -1393,6 +1407,13 @@
+ 	if (typeof field !== "string") throw new Error(`persisted subagent descriptor ${key} must be a string`);
+ 	return field;
+ }
++/** Read one optional boolean field from a persisted descriptor record. */
++function optionalBoolean(value, key) {
++	if (!Object.hasOwn(value, key)) return void 0;
++	const field = value[key];
++	if (typeof field !== "boolean") throw new Error(`persisted subagent descriptor ${key} must be a boolean`);
++	return field;
++}
+ /** Read one optional string-array field from a persisted tool restriction. */
+ function optionalStringArray(value, key) {
+ 	if (!Object.hasOwn(value, key)) return void 0;
+@@ -1426,6 +1447,7 @@
+ 	const provider = value["provider"];
+ 	if (typeof provider !== "string") throw new Error("persisted subagent descriptor provider must be a string");
+ 	const inheritedEventCount = optionalCount(value, "inheritedEventCount");
++	const readOnly = optionalBoolean(value, "readOnly");
+ 	if (mode === "one-shot") {
+ 		const label = optionalString(value, "label");
+ 		const toolFilter = Object.hasOwn(value, "toolFilter") ? parseToolFilter(value["toolFilter"]) : void 0;
+@@ -1435,6 +1457,7 @@
+ 			provider,
+ 			...label !== void 0 ? { label } : {},
+ 			...toolFilter !== void 0 ? { toolFilter } : {},
++			...readOnly !== void 0 ? { readOnly } : {},
+ 			...inheritedEventCount !== void 0 ? { inheritedEventCount } : {}
+ 		};
+ 	}
+@@ -1455,6 +1478,7 @@
+ 		...agentReasoningEffort !== void 0 ? { agentReasoningEffort } : {},
+ 		...persona !== void 0 ? { persona } : {},
+ 		...toolFilter !== void 0 ? { toolFilter } : {},
++		...readOnly !== void 0 ? { readOnly } : {},
+ 		...inheritedEventCount !== void 0 ? { inheritedEventCount } : {}
+ 	};
+ }
+@@ -1465,6 +1489,7 @@
+ 		provider: input.provider,
+ 		...input.label !== void 0 ? { label: input.label } : {},
+ 		...input.toolFilter !== void 0 ? { toolFilter: input.toolFilter } : {},
++		...input.readOnly !== void 0 ? { readOnly: input.readOnly } : {},
+ 		...input.inheritedEventCount !== void 0 ? { inheritedEventCount: input.inheritedEventCount } : {}
+ 	} : {
+ 		version: 3,
+@@ -1476,6 +1501,7 @@
+ 		...input.agentReasoningEffort !== void 0 ? { agentReasoningEffort: input.agentReasoningEffort } : {},
+ 		...input.persona !== void 0 ? { persona: input.persona } : {},
+ 		...input.toolFilter !== void 0 ? { toolFilter: input.toolFilter } : {},
++		...input.readOnly !== void 0 ? { readOnly: input.readOnly } : {},
+ 		...input.inheritedEventCount !== void 0 ? { inheritedEventCount: input.inheritedEventCount } : {}
+ 	});
+ 	if (snapshot === void 0) throw new Error("subagent descriptor is not losslessly JSON-serializable");
+@@ -1745,7 +1771,8 @@
+ 				...agentModel !== void 0 ? { agentModel } : {},
+ 				...agentReasoningEffort !== void 0 ? { agentReasoningEffort } : {},
+ 				...request.persona !== void 0 ? { persona: request.persona } : {},
+-				...request.toolFilter !== void 0 ? { toolFilter: request.toolFilter } : {}
++				...request.toolFilter !== void 0 ? { toolFilter: request.toolFilter } : {},
++				...request.readOnly === true ? { readOnly: true } : {}
+ 			});
+ 			return {
+ 				childId,
+@@ -1775,6 +1802,7 @@
+ 						composition: {
+ 							persona: request.persona,
+ 							toolFilter: request.toolFilter,
++							readOnly: request.readOnly,
+ 							inheritedEventCount
+ 						},
+ 						signal: spec.signal
+@@ -1974,6 +2002,7 @@
+ 					composition: {
+ 						persona: descriptor.persona,
+ 						toolFilter: descriptor.toolFilter,
++						readOnly: descriptor.readOnly,
+ 						inheritedEventCount: source.inheritedEventCount
+ 					},
+ 					signal: options.signal
+@@ -3225,7 +3254,8 @@
+ 				mode: "one-shot",
+ 				provider: name,
+ 				...request.label !== void 0 ? { label: request.label } : {},
+-				...request.toolFilter !== void 0 ? { toolFilter: request.toolFilter } : {}
++				...request.toolFilter !== void 0 ? { toolFilter: request.toolFilter } : {},
++				...request.readOnly === true ? { readOnly: true } : {}
+ 			});
+ 			const resolved = {
+ 				...request,
+@@ -3294,6 +3324,10 @@
+ 					cap: "toolFilter"
+ 				},
+ 				{
++					when: request.readOnly === true,
++					cap: "toolFilter"
++				},
++				{
+ 					when: request.persona !== void 0,
+ 					cap: "persona"
+ 				}

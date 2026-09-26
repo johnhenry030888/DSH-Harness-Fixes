@@ -57,9 +57,11 @@ pin_check() {
   ' "$SETTINGS" 2>/dev/null
 }
 if [ -f "$SETTINGS" ] && ! pin_check; then
-  echo "settings pin present: llm-pi-ai.providers.opencode-go.models replaces the live catalog"
-  echo "  remove it from $SETTINGS (backup: settings.yaml.bak-bug005-20260925)"
-  ok=1
+  # A pin is a deliberate deployment choice: it trades live-catalog serving for
+  # a curated route list. It no longer fails this check (2026-09-26) — bug 012's
+  # three-source classifier keeps route rejections honest under a pin.
+  echo "NOTE: settings pin present: llm-pi-ai.providers.opencode-go.models replaces the live catalog"
+  echo "  (deliberate curated deployment; remove it from $SETTINGS to serve the live catalog)"
 fi
 
 if [ "$ok" -eq 0 ]; then

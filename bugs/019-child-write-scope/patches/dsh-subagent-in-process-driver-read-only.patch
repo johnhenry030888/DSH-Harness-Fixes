@@ -1,0 +1,13 @@
+--- pristine/subagent-in-process-driver/lib/index.js	2026-09-26 07:57:32.189039753 +0200
++++ installed/subagent-in-process-driver/lib/index.js	2026-09-26 07:57:32.072962056 +0200
+@@ -173,8 +173,9 @@
+ 		applyChildComposition(childCtx, parent, {
+ 			persona: request.persona,
+ 			toolFilter: request.toolFilter,
++			readOnly: request.readOnly,
+ 			inheritedEventCount: activationBoundary
+-		});
++		}, childId);
+ 		if (request.outputSchema !== void 0) structured = attachStructuredRuntime(childCtx, request.outputSchema);
+ 		attachDescriptorAppend(childCtx, {
+ 			...request.descriptor,

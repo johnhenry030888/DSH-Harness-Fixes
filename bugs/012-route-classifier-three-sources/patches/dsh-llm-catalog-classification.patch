@@ -1,0 +1,45 @@
+--- pristine/llm/lib/index.js	2026-09-26 07:25:01.288175653 +0200
++++ installed/llm/lib/index.js	2026-09-26 07:26:10.346599131 +0200
+@@ -1667,6 +1667,17 @@
+ 		return Promise.resolve([]);
+ 	}
+ 	/**
++	* List every model id this adapter's provider catalog knows, including ids
++	* the deployment does not configure. The default falls back to
++	* {@link listModels}, so adapters without a separate catalog keep the
++	* configured list as their whole known surface.
++	* @param provider - one provider route owned by this adapter.
++	* @returns known models in adapter-preferred order.
++	*/
++	listCatalogModels(provider) {
++		return this.listModels(provider);
++	}
++	/**
+ 	* Resolve all metadata available for one exact model. This query is
+ 	* independent of the advisory catalog and does not validate request routing.
+ 	* @param provider - one provider route owned by this adapter.
+@@ -2029,7 +2040,23 @@
+ 		* @returns detached model metadata in adapter-preferred order.
+ 		*/
+ 		async listModels(provider) {
+-			const models = await this.registration(provider).adapter.listModels(provider);
++			return this.detachCatalog(provider, await this.registration(provider).adapter.listModels(provider));
++		}
++		/**
++		* Discover every model id the adapter's provider catalog knows for one
++		* registered provider — the configured list plus any adapter-shipped or
++		* live-catalog ids. Delegation diagnostics use this to distinguish "the
++		* provider serves this id, but it is not configured for this deployment"
++		* from "no such id", a distinction {@link listModels} cannot make when a
++		* deployment pins its model list.
++		* @param provider - registered provider route to inspect.
++		* @returns detached catalog metadata in adapter-preferred order.
++		*/
++		async listCatalogModels(provider) {
++			return this.detachCatalog(provider, await this.registration(provider).adapter.listCatalogModels(provider));
++		}
++		/** Validate and detach one adapter-returned catalog for a provider route. */
++		detachCatalog(provider, models) {
+ 			const seen = /* @__PURE__ */ new Set();
+ 			return models.map((model) => {
+ 				if (typeof model.provider !== "string" || model.provider !== provider || typeof model.id !== "string" || model.id.length === 0 || typeof model.name !== "string" || model.name.length === 0 || model.description !== void 0 && typeof model.description !== "string" || seen.has(model.id)) throw new LlmError(`adapter returned invalid or duplicate model metadata for provider "${provider}"`, "INVALID_CATALOG");

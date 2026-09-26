@@ -1,0 +1,41 @@
+--- pristine/subagent-in-process-driver/lib/index.js	2026-09-26 07:28:09.557687761 +0200
++++ installed/subagent-in-process-driver/lib/index.js	2026-09-26 07:28:34.017280535 +0200
+@@ -231,6 +231,22 @@
+ 		}
+ 	};
+ }
++/**
++* Render the child's own structured turn failure as the seam's diagnostic.
++* The turn/end `error` reason carries the LLM failure verbatim
++* (`{message, code}`); every other non-completed reason has no detail to
++* publish. Without this the in-process backend returned no `diagnostic`, so a
++* failed child reached consumers (and the workflow run record) as a bare
++* stop reason.
++* @param reason - the child's terminal turn/end reason, if any.
++* @returns the diagnostic text, or `undefined` when the reason carries none.
++*/
++function turnDiagnostic(reason) {
++	if (reason?.kind !== "error") return void 0;
++	const failure = reason.error;
++	if (failure === void 0 || typeof failure.message !== "string" || failure.message.length === 0) return void 0;
++	return typeof failure.code === "string" && failure.code.length > 0 ? `${failure.message} (${failure.code})` : failure.message;
++}
+ /** Read one settled child's result from events after its activation boundary. */
+ function readResult(child, boundary, cancelled, structured) {
+ 	const own = child.session.snapshotEvents(boundary);
+@@ -238,6 +254,7 @@
+ 	const output = finalAssistantOutput(own) ?? [];
+ 	const recorded = toStopReason(lastEnd?.data.reason);
+ 	const stopReason = cancelled && recorded !== "completed" ? "aborted" : recorded;
++	const diagnostic = stopReason === "completed" ? void 0 : turnDiagnostic(lastEnd?.data.reason);
+ 	if (structured !== void 0) {
+ 		if (structured.captured !== void 0) return {
+ 			output,
+@@ -251,6 +268,7 @@
+ 	}
+ 	return {
+ 		output,
++		...diagnostic === void 0 ? {} : { diagnostic },
+ 		stopReason
+ 	};
+ }

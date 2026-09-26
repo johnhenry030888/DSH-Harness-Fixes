@@ -1,0 +1,18 @@
+--- pristine/tool-subagent/lib/index.js	2026-09-26 07:29:45.246622811 +0200
++++ installed/tool-subagent/lib/index.js	2026-09-26 07:30:00.419235880 +0200
+@@ -338,6 +338,7 @@
+ 		allow: z.array(z.string()).default(void 0),
+ 		deny: z.array(z.string()).default(void 0)
+ 	}).default(void 0),
++	readOnly: z.boolean().default(false),
+ 	maxDepth: z.union([z.natural().max(Number.MAX_SAFE_INTEGER), z.const("provider-managed")]).default(3)
+ });
+ /** Render text blocks from the canonical JSON block array without trusting arbitrary values. */
+@@ -597,6 +598,7 @@
+ 							...requestedChildAgentOptions !== void 0 ? { agentOptions: requestedChildAgentOptions } : {},
+ 							...config.persona !== void 0 ? { persona: config.persona } : {},
+ 							...config.toolFilter !== void 0 ? { toolFilter: config.toolFilter } : {},
++							...config.readOnly === true ? { readOnly: true } : {},
+ 							...maxDepth !== void 0 ? { maxDepth } : {}
+ 						};
+ 						if (resolveDelegationRun(args, {

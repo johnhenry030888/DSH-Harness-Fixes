@@ -1,0 +1,141 @@
+--- pristine/subagent/lib/index.js	2026-09-26 07:27:21.842752150 +0200
++++ installed/subagent/lib/index.js	2026-09-26 07:28:00.599076372 +0200
+@@ -542,10 +542,11 @@
+  */
+ function applyChildComposition(childCtx, parent, composition, label) {
+ 	childCtx.get("agentPresets")?.composeFrom(childCtx, parent.ctx);
++	const inheritedEventCount = composition.inheritedEventCount ?? 0;
+ 	childCtx.systemPrompt.context({
+ 		name: "subagent:delegation",
+ 		order: childCtx.systemPrompt.getContextOrder("SUBAGENT_DELEGATION"),
+-		text: SUBAGENT_DELEGATION_CONTEXT
++		text: `${SUBAGENT_DELEGATION_CONTEXT} This layer inherited ${inheritedEventCount} completed event${inheritedEventCount === 1 ? "" : "s"} from parent agent "${parent.session.header.id}" (0 means it started cold with no inherited conversation; a fork seed covers only completed turns).`
+ 	});
+ 	if (composition.persona !== void 0) childCtx.systemPrompt.section({
+ 		name: "deployment:persona-prefix",
+@@ -1341,7 +1342,8 @@
+ 	"version",
+ 	"mode",
+ 	"provider",
+-	"label"
++	"label",
++	"inheritedEventCount"
+ ];
+ const ONE_SHOT_DESCRIPTOR_KEYS = new Set(DESCRIPTOR_BASE_KEYS);
+ const CONTINUABLE_DESCRIPTOR_KEYS = new Set([
+@@ -1362,6 +1364,13 @@
+ 	const unknown = Object.keys(value).find((key) => !keys.has(key));
+ 	if (unknown !== void 0) throw new Error(`persisted subagent descriptor ${path} has unknown field "${unknown}"`);
+ }
++/** Read one optional non-negative safe-integer field from a persisted descriptor record. */
++function optionalCount(value, key) {
++	if (!Object.hasOwn(value, key)) return void 0;
++	const field = value[key];
++	if (typeof field !== "number" || !Number.isSafeInteger(field) || field < 0) throw new Error(`persisted subagent descriptor ${key} must be a non-negative safe integer`);
++	return field;
++}
+ /** Read one optional string field from a persisted descriptor record. */
+ function optionalString(value, key) {
+ 	if (!Object.hasOwn(value, key)) return void 0;
+@@ -1401,13 +1410,15 @@
+ 	assertKnownKeys(value, mode === "one-shot" ? ONE_SHOT_DESCRIPTOR_KEYS : CONTINUABLE_DESCRIPTOR_KEYS, "payload");
+ 	const provider = value["provider"];
+ 	if (typeof provider !== "string") throw new Error("persisted subagent descriptor provider must be a string");
++	const inheritedEventCount = optionalCount(value, "inheritedEventCount");
+ 	if (mode === "one-shot") {
+ 		const label = optionalString(value, "label");
+ 		return {
+ 			version: 3,
+ 			mode,
+ 			provider,
+-			...label !== void 0 ? { label } : {}
++			...label !== void 0 ? { label } : {},
++			...inheritedEventCount !== void 0 ? { inheritedEventCount } : {}
+ 		};
+ 	}
+ 	const label = value["label"];
+@@ -1426,7 +1437,8 @@
+ 		...agentModel !== void 0 ? { agentModel } : {},
+ 		...agentReasoningEffort !== void 0 ? { agentReasoningEffort } : {},
+ 		...persona !== void 0 ? { persona } : {},
+-		...toolFilter !== void 0 ? { toolFilter } : {}
++		...toolFilter !== void 0 ? { toolFilter } : {},
++		...inheritedEventCount !== void 0 ? { inheritedEventCount } : {}
+ 	};
+ }
+ function snapshotSubagentDescriptor(input) {
+@@ -1434,7 +1446,8 @@
+ 		version: 3,
+ 		mode: input.mode,
+ 		provider: input.provider,
+-		...input.label !== void 0 ? { label: input.label } : {}
++		...input.label !== void 0 ? { label: input.label } : {},
++		...input.inheritedEventCount !== void 0 ? { inheritedEventCount: input.inheritedEventCount } : {}
+ 	} : {
+ 		version: 3,
+ 		mode: input.mode,
+@@ -1444,7 +1457,8 @@
+ 		...input.agentModel !== void 0 ? { agentModel: input.agentModel } : {},
+ 		...input.agentReasoningEffort !== void 0 ? { agentReasoningEffort: input.agentReasoningEffort } : {},
+ 		...input.persona !== void 0 ? { persona: input.persona } : {},
+-		...input.toolFilter !== void 0 ? { toolFilter: input.toolFilter } : {}
++		...input.toolFilter !== void 0 ? { toolFilter: input.toolFilter } : {},
++		...input.inheritedEventCount !== void 0 ? { inheritedEventCount: input.inheritedEventCount } : {}
+ 	});
+ 	if (snapshot === void 0) throw new Error("subagent descriptor is not losslessly JSON-serializable");
+ 	return snapshot;
+@@ -1692,16 +1706,6 @@
+ 		const agentProvider = agentOptions.provider;
+ 		const agentModel = agentOptions.model;
+ 		const agentReasoningEffort = agentOptions.reasoningEffort;
+-		const descriptor = snapshotSubagentDescriptor({
+-			mode: "continuable",
+-			provider: spec.provider,
+-			label: spec.label,
+-			...agentProvider !== void 0 ? { agentProvider } : {},
+-			...agentModel !== void 0 ? { agentModel } : {},
+-			...agentReasoningEffort !== void 0 ? { agentReasoningEffort } : {},
+-			...request.persona !== void 0 ? { persona: request.persona } : {},
+-			...request.toolFilter !== void 0 ? { toolFilter: request.toolFilter } : {}
+-		});
+ 		const delegatedPolicies = captureDelegatedPolicyOverrides(parent);
+ 		const releaseHold = this.activations.holdOwnership(parent, childId);
+ 		try {
+@@ -1714,6 +1718,17 @@
+ 			this.activations.assertAdmitting(parent);
+ 			const inheritedEventCount = SessionLogOffset(prepared.seed?.length ?? 0);
+ 			const seed = prepared.seed;
++			const descriptor = snapshotSubagentDescriptor({
++				mode: "continuable",
++				provider: spec.provider,
++				label: spec.label,
++				inheritedEventCount,
++				...agentProvider !== void 0 ? { agentProvider } : {},
++				...agentModel !== void 0 ? { agentModel } : {},
++				...agentReasoningEffort !== void 0 ? { agentReasoningEffort } : {},
++				...request.persona !== void 0 ? { persona: request.persona } : {},
++				...request.toolFilter !== void 0 ? { toolFilter: request.toolFilter } : {}
++			});
+ 			return {
+ 				childId,
+ 				messageId: await this.activations.locks.run(childId, async () => {
+@@ -1741,7 +1756,8 @@
+ 						agentOptions,
+ 						composition: {
+ 							persona: request.persona,
+-							toolFilter: request.toolFilter
++							toolFilter: request.toolFilter,
++							inheritedEventCount
+ 						},
+ 						signal: spec.signal
+ 					});
+@@ -1939,7 +1955,8 @@
+ 					},
+ 					composition: {
+ 						persona: descriptor.persona,
+-						toolFilter: descriptor.toolFilter
++						toolFilter: descriptor.toolFilter,
++						inheritedEventCount: source.inheritedEventCount
+ 					},
+ 					signal: options.signal
+ 				});

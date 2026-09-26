@@ -1,0 +1,39 @@
+--- pristine/tool-subagent/lib/index.js	2026-09-26 07:25:01.281608165 +0200
++++ installed/tool-subagent/lib/index.js	2026-09-26 07:25:22.073390681 +0200
+@@ -122,11 +122,18 @@
+  *
+  * The check runs at the two points where the catalog is complete: before the
+  * row's own tool starts a child, and at every `agent/created` (a boot-time
+- * signal for a standing composition, which mounts concurrently and therefore
+- * cannot answer for a sibling row's tool at its own apply time). A cordis
+- * `agent/created` listener rejection is contained and logged by the Agent
+- * registry, so the boot-time arm is a named error log rather than a torn-down
+- * session; the delegation arm is the hard failure.
++ * signal for a standing composition). Only the pre-spawn arm is a hard
++ * failure; the boot arm NEVER throws. A standing composition mounts its rows
++ * concurrently (`EntryGroup.update` uses `Promise.allSettled`), so a boot arm
++ * that ran before a sibling row applied would see that sibling's tool as
++ * unknown and — because `agent/created` dispatch is synchronous — throw out
++ * of `agents.announce()`, abort agent creation and roll back the very
++ * registrations it was checking (drill v6: one mount in six lost the
++ * model-selection row's `subagent` + `list_subagent_models` while the sibling
++ * pins survived). The boot arm therefore logs a named diagnostic (row id,
++ * agent id, offending names) and defers; the next real decision point — the
++ * row's own pre-spawn arm — re-validates against the complete catalog and
++ * fails the row's spawns there.
+  *
+  * This row's own registrations are tolerated: a model-selection row registers
+  * its tool and `list_subagent_models` in each agent's own layer, where
+@@ -421,7 +428,11 @@
+ 	const modelSelectionCapable = config.modelSelectionSettings === true;
+ 	const rowLabel = ctx.fiber?.entry?.id ?? (typeof ctx.fiber?.name === "string" ? ctx.fiber.name : "tool-subagent");
+ 	if (config.toolFilter !== void 0) ctx.on("agent/created", ({ agent }) => {
+-		assertKnownToolFilterNames(ctx.tools, scopeOf(agent.ctx), config, rowLabel);
++		try {
++			assertKnownToolFilterNames(ctx.tools, scopeOf(agent.ctx), config, rowLabel);
++		} catch (error) {
++			ctx.logger.warn(`tool-subagent: row "${rowLabel}" boot toolFilter validation deferred for agent "${agent.id}" (the standing catalog may still be mounting; the row's pre-spawn check re-validates): ${String(error)}`);
++		}
+ 	});
+ 	ctx.sessionProjections.register(subagentModelSelectionProjectionDefinition);
+ 	const assertSubagentProviderConfiguration = (subagentProvider) => {

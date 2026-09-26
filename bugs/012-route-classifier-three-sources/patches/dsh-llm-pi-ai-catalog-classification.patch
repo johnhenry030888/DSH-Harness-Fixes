@@ -1,0 +1,40 @@
+--- pristine/llm-pi-ai/lib/index.js	2026-09-26 07:25:01.291718721 +0200
++++ installed/llm-pi-ai/lib/index.js	2026-09-26 07:26:46.763196161 +0200
+@@ -2134,6 +2134,37 @@
+ 			}));
+ 		});
+ 	}
++	/**
++	* Every model id the provider catalog knows: pi-ai's bundled descriptors,
++	* the live-catalog cache overlay when one is present, and the deployment's
++	* configured models. Union rather than replacement, so an id the gateway
++	* still serves but the live cache no longer lists (or vice versa) is still
++	* classified as served. Used only for advisory diagnostics; routing still
++	* resolves through the configured models alone.
++	*/
++	listCatalogModels(provider) {
++		return Promise.resolve().then(() => {
++			const snapshot = this.current();
++			this.profileOf(snapshot, provider);
++			const merged = /* @__PURE__ */ new Map();
++			for (const model of catalogModels(provider).values()) merged.set(model.id, {
++				id: model.id,
++				name: model.name,
++				input: model.input ?? []
++			});
++			for (const model of snapshot.models.getModels(provider)) merged.set(model.id, {
++				id: model.id,
++				name: model.name,
++				input: model.input ?? []
++			});
++			return [...merged.values()].map((model) => ({
++				provider,
++				id: model.id,
++				name: model.name,
++				inputModalities: [...model.input]
++			}));
++		});
++	}
+ 	resolveModel(provider, model, _signal) {
+ 		return Promise.resolve().then(() => {
+ 			const snapshot = this.current();

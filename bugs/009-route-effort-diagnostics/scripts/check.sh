@@ -14,7 +14,8 @@ marker() {
 
 # Route rejection classification (delegation + discovery).
 marker "does not serve a model with id" "$TOOL"
-marker "the provider serves this model id, but it is outside the Session's allowed routes" "$TOOL"
+marker "is not allowed for this Session" "$TOOL"
+marker "it is outside the Session's allowed routes" "$TOOL"
 grep -q "async function assertAllowedModelSelection(llm, policy," "$TOOL" 2>/dev/null || {
   echo "missing: async assertAllowedModelSelection(llm, ...)"
   ok=1

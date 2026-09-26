@@ -1,0 +1,10 @@
+--- pristine/workflow-worker-thread/lib/index.js	2026-09-26 07:28:09.554197695 +0200
++++ installed/workflow-worker-thread/lib/index.js	2026-09-26 07:28:39.318145089 +0200
+@@ -533,6 +533,7 @@
+ 				const snapshot = snapshotJsonValue({
+ 					output: result.output,
+ 					...result.structured !== void 0 ? { structured: result.structured } : {},
++					...result.diagnostic !== void 0 ? { diagnostic: result.diagnostic } : {},
+ 					stopReason: result.stopReason
+ 				});
+ 				if (snapshot === void 0) throw new TypeError("child result is not losslessly JSON-serializable");

@@ -1,0 +1,10 @@
+--- pristine/system-prompt/lib/index.js	2026-09-26 07:29:03.377002090 +0200
++++ installed/system-prompt/lib/index.js	2026-09-26 07:29:14.767588518 +0200
+@@ -44,6 +44,7 @@
+ 	AGENT_ROUTE: 105,
+ 	SANDBOX_POLICY: 110,
+ 	APPROVAL_POLICY: 115,
++	SUBAGENT_LAYER: 118,
+ 	SUBAGENT_DELEGATION: 120
+ };
+ /**

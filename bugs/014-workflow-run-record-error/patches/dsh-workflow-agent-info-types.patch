@@ -1,0 +1,27 @@
+--- pristine/workflow/lib/types/types.d.ts	2026-09-26 07:28:09.547657209 +0200
++++ installed/workflow/lib/types/types.d.ts	2026-09-26 07:29:03.282332248 +0200
+@@ -93,6 +93,10 @@
+     phase?: string;
+     /** The child agent's id on the subagent seam. */
+     childId: SessionId;
++    /** The provider the call asked for (`opts.provider`), when one was named. */
++    requestedProvider?: string;
++    /** The model the call asked for (`opts.model`), when one was named. */
++    requestedModel?: string;
+ }
+ /** How one `agent()` call settled: clean result, child failure (script sees `null`), or run cancellation. */
+ export type WorkflowAgentOutcome = 'completed' | 'failed' | 'cancelled';
+@@ -100,6 +104,13 @@
+ export interface WorkflowAgentEndInfo extends WorkflowAgentInfo {
+     /** How the call settled. */
+     outcome: WorkflowAgentOutcome;
++    /**
++     * Why a non-`completed` call failed: the child's provider-authored
++     * diagnostic where one exists, else the rendered spawn/result failure.
++     * Absent on success (and on host-synthesized cancellations, which have no
++     * failure detail to report).
++     */
++    error?: string;
+ }
+ /**
+  * A settled run's outcome as event data (the `workflow/end` payload): the
