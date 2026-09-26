@@ -21,7 +21,8 @@ there (no fix patch of 009/012 changed).
 
 Verification note (2026-09-26, drill v13): fix 011 is **CLOSED** — ten clean
 `standard → orchestrator` switch samples on file
-(`~/Desktop/orchestrator-switch-path-log.md`), every one corroborated at
+(`~/Documents/dsh-drill-archive/orchestrator-switch-path-log.md`), every one
+corroborated at
 transcript level, no 176-tool mount.
 
 Verification note (2026-09-26, drill v17, efficiency re-run): **PASS with one

@@ -8,6 +8,13 @@
   016, 020, 026-030 — landed from drill v12's findings plus the orchestrator
   efficiency pass). Drill v13 then closed fix 011: **ten clean
   `standard → orchestrator` switch samples**, no 176-tool mount in any.
+- Desktop sweep (2026-09-26): every drill artifact except the active v18 prompt
+  moved to `~/Documents/dsh-drill-archive/` — `prompts/` (18, plus `prompts/opencode/`
+  with the 5 batch-fix prompts), `reports/` (16), `evidence/` (16), `roots/` (16
+  drill working directories, 12 MB total) and `orchestrator-switch-path-log.md`.
+  Nothing was deleted. Drill v18's setup/output paths now write into the archive
+  (`roots/orchestrator-drill-v18-<STAMP>`, `reports/`, `evidence/`), so the Desktop
+  stays clean between runs.
 - What changed this turn (2026-09-26, drill v17 follow-up):
   - **drill v17 (efficiency re-run): PASS, with one honest negative result.**
     1 677 s / 853 109 tokens / 10 children / 171 calls; suite 47 passed with
@@ -59,7 +66,7 @@
     stage-1 siblings ran at unmatched effort: 798 s vs 378 s, 36 % of the run);
     a build task now carries a **discrimination checklist** (one adversarial input
     per contract clause); and the review lane must **re-run** claimed mutations.
-  - **Drill v17 written** (`~/Desktop/orchestrator-drill-prompt-v17.md`): the
+  - **Drill v17 written** (`~/Documents/dsh-drill-archive/prompts/orchestrator-drill-prompt-v17.md` (was on the Desktop)): the
     efficiency re-run — same end-to-end task, but with the three doctrine fixes
     exercised and the telemetry diffed against v16's baseline; its explicit bar is
     that v16's two surviving mutations go RED.
@@ -68,7 +75,7 @@
     the resolved stage effort in the workflow run record.
 - Earlier this turn (2026-09-26, drill v15 follow-up):
   - **drill v15: 31/31 PASS, 0 FAIL, 0 NOT RUN** (report + evidence on the
-    Desktop; drill root `~/Desktop/orchestrator-drill-v15-20260926-1923`). Every
+    Desktop, since archived under `~/Documents/dsh-drill-archive/reports/`; drill root `~/Documents/dsh-drill-archive/roots/orchestrator-drill-v15-20260926-1923`). Every
     local fix in the project is now observed live: v15 itself exercised 001
     (answer arrives as the `ask_user_question` tool result inside a goal round,
     `roundsStarted: 0`), 002 (GitHub `list_commits` + postgres `select 1` —
@@ -92,7 +99,7 @@
     tree caveat (never read it as the declared target), the second and third
     steering-band samples with the model-bound split, and the falsification
     pitfall.
-  - **Drill v16 written** (`~/Desktop/orchestrator-drill-prompt-v16.md`): the
+  - **Drill v16 written** (`~/Documents/dsh-drill-archive/prompts/orchestrator-drill-prompt-v16.md` (was on the Desktop)): the
     closure run — one real end-to-end task through the whole lane set
     (partition → build → verify + falsification → review → lead merge), a
     two-stage `workflow` sub-task, an efficiency-telemetry table (wall clock per
@@ -123,7 +130,7 @@
     self-count (and as a standalone mode), and delegation-failure attribution
     points at `tool/result.error.code` / `workflow … errorCode`, never the
     descriptor.
-  - **Drill v15 written** (`~/Desktop/orchestrator-drill-prompt-v15.md`):
+  - **Drill v15 written** (`~/Documents/dsh-drill-archive/prompts/orchestrator-drill-prompt-v15.md` (was on the Desktop)):
     required phases for the never-observed fixes — 001 (goal-round ask), 002 (MCP
     `${VAR}` expansion via the github + postgres servers), 004 (Codex sign-in
     entry, operator-assisted), 010a/b/c (job-tool teaching hint, `checkedAt`,
@@ -182,7 +189,7 @@
     the steering guidance reflects fix 030 — a steer cancels the in-flight tool
     call, so the ~62 s long-call band is history and > ~20 s behind a long call is
     friction to report.
-  - **Drill v14 written** (`~/Desktop/orchestrator-drill-prompt-v14.md`): required
+  - **Drill v14 written** (`~/Documents/dsh-drill-archive/prompts/orchestrator-drill-prompt-v14.md` (was on the Desktop)): required
     live probes for 016, 020, 027, 028, 029 and 030, the 007 probe script as a
     required phase, three regression checks, a completion gate and the exact
     report/evidence paths.
