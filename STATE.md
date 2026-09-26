@@ -68,8 +68,11 @@
   - [x] `./scripts/check-all.sh` + `./scripts/verify.sh` + `audit-secrets.sh`
   - [x] UI gates — N/A (harness bundle patches; no project UI files)
   - [x] visual baseline — N/A
-  - [ ] checkpoint/commit (`git`) — this batch commit
-  - [ ] push to origin — this batch push
+  - [x] checkpoint/commit (`git`) — `65f7b15` (bugs 023/024/025 fixes + docs,
+    STATUS/STATE, 009/012 check-class updates)
+  - [x] push to origin — `https://github.com/johnhenry030888/DSH-Harness-Fixes`
+    accepted `2115b57..65f7b15` on `main`; pre-push hooks passed (pytest, node,
+    cargo/go skips, secrets green)
   - [x] update this file (every turn ends by updating it)
 - Open items:
   - 016 (catalog introspection) remains NOT implemented; no seam-clean
