@@ -60,12 +60,12 @@
 - Settings note: the `opencode-go` `models:` pin is **deliberately present**
   (curated 8-route deployment); bug 012 keeps rejections honest under it.
 - Autonomy loop (run without asking; stop only when verify passes AND tree committed AND pushed (or push explicitly deferred with reason)):
-  - [ ] lint (`linter-formatter` `lint`) — clean on new files
+  - [x] lint (`linter-formatter` `lint`) — biome/shfmt/shellcheck/ruff/typos/yamllint clean on new files
   - [x] `./scripts/check-all.sh` + `./scripts/verify.sh` + `audit-secrets.sh`
   - [x] UI gates — N/A (harness bundle patches; no project UI files)
   - [x] visual baseline — N/A
-  - [x] checkpoint/commit (`git`) — pending this turn
-  - [x] push to origin — pending this turn
+  - [x] checkpoint/commit (`git`) — `9ed184e` (bugs 014b/017/021/022 fixes + docs, STATUS/STATE)
+  - [x] push to origin — `https://github.com/johnhenry030888/DSH-Harness-Fixes` accepted `bb36ce0..9ed184e` on `main`; pre-push hooks passed (pytest 4 passed, node/cargo/go/secrets green)
   - [x] update this file (every turn ends by updating it)
 - Open items:
   - 016 (catalog introspection) remains NOT implemented; no seam-clean
