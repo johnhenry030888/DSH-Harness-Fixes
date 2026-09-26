@@ -64,6 +64,24 @@ Linux and the pinned lane command is bash, so only `dsh-tool-bash` is patched
   (`patches/dsh-tool-bash-read-only-pytest-addopts.patch`; no earlier local
   patch, applies to pristine 0.1.5-rc.2 directly)
 
+## Writing a discriminating assertion for this fix (drill v15 friction #2)
+
+The obvious test — `assert not os.path.exists(".pytest_cache")` — is
+**self-invalidating**: the falsification run (the same suite deliberately
+executed *without* the injected flag) creates that very directory, after which
+the test fails forever in that directory and looks exactly like a harness
+regression. Assert the **plugin state** instead:
+
+```python
+def test_cacheprovider_is_disabled(request):
+    assert request.config.pluginmanager.has_plugin("cacheprovider") is False
+```
+
+Drill v15 used this form and falsified both ways: without the injected flag it
+fails (`cacheprovider is still registered`), with `-p no:cacheprovider` it
+passes. The directory form would have passed the *falsification* run and failed
+the real one on every later run.
+
 ## Acceptance evidence
 
 See `EVIDENCE.md`. Live on a temporary headless overlay adding a `readOnly:

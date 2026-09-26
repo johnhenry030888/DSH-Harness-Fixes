@@ -24,6 +24,20 @@ Verification note (2026-09-26, drill v13): fix 011 is **CLOSED** — ten clean
 (`~/Desktop/orchestrator-switch-path-log.md`), every one corroborated at
 transcript level, no 176-tool mount.
 
+Verification note (2026-09-26, drill v15): **31 of 31 fixes PASS live, 0 FAIL,
+0 NOT RUN** — every local fix in this project has now been observed in a real
+session (16 during v15 itself: 001, 002, 004, 010, 016, 016b, 018, 019, 020,
+021, 022, 023, 025, 026, 027, 029; the rest carried from v13/v14 and not
+re-litigated). v15 also closed v14's single FAIL (016b) and its seven NOT RUN
+targets. Two harness-side frictions remain **open** (documented, not fixed):
+(a) `list_agents` renders a row's tree as the child's **session cwd**, not the
+target its prompt declared — the ordering guard itself uses declared paths, only
+the display is coarse, and the clean fix is to reuse the guard's
+`declaredTreesOf` through the listing projection; (b) a steer's delivery and
+boundary timestamps are not surfaced (`send_message` result or settlement
+notice), so drill authors still measure the steer band with a stopwatch and a
+cooperative child.
+
 Verification note (2026-09-26, drill v14): **21 PASS / 1 FAIL / 7 NOT RUN**. The
 FAIL is fixed as **016b** above (and re-verified live). Drill v14 also closed
 **007** live, confirmed **020, 027, 028, 029, 030** (030 measured 4.1 s from

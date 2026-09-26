@@ -8,7 +8,37 @@
   016, 020, 026-030 — landed from drill v12's findings plus the orchestrator
   efficiency pass). Drill v13 then closed fix 011: **ten clean
   `standard → orchestrator` switch samples**, no 176-tool mount in any.
-- What changed this turn (2026-09-26, drill v14 follow-up):
+- What changed this turn (2026-09-26, drill v15 follow-up):
+  - **drill v15: 31/31 PASS, 0 FAIL, 0 NOT RUN** (report + evidence on the
+    Desktop; drill root `~/Desktop/orchestrator-drill-v15-20260926-1923`). Every
+    local fix in the project is now observed live: v15 itself exercised 001
+    (answer arrives as the `ask_user_question` tool result inside a goal round,
+    `roundsStarted: 0`), 002 (GitHub `list_commits` + postgres `select 1` —
+    `${VAR}` env expansion live), 004 (operator confirms the Codex sign-in entry),
+    010a/b/c (job-tool teaching hint, `checkedAt` rows, own route line), 019
+    (`write` refused **and** a shell mutation denied by the read-only sandbox,
+    while the build lane still wrote), 021/025 (read-only pytest: no temp-dir
+    error, no cache warning, and the suite falsified both ways), plus 016b/020b,
+    018/020/022/023/026/027/029 and the three regressions.
+  - **Two v15 frictions remain open** (recorded here rather than half-fixed):
+    `list_agents` shows the child's session cwd, not its declared target tree
+    (the guard's `declaredTreesOf` is the right source; it lives in
+    `dsh-subagent` and the listing is projection-backed), and a steer's
+    delivery/boundary timestamps are not surfaced for measurement.
+  - **Cheap v15 follow-ups landed:** the 020 helper reports `webPid` (+ `kept`)
+    so a "no stray server" assertion is baseline-relative, and the 025 README
+    documents the self-invalidating assertion trap (`has_plugin("cacheprovider")
+    is False`, never a `.pytest_cache` directory check).
+  - **Persona corrected** (backup `agent.cordis.yml.pre-v16-20260926`): the job
+    tools' teaching hint and `checkedAt` semantics, the `[writes in …]`
+    tree caveat (never read it as the declared target), the second and third
+    steering-band samples with the model-bound split, and the falsification
+    pitfall.
+  - **Drill v16 written** (`~/Desktop/orchestrator-drill-prompt-v16.md`): the
+    closure run — one real end-to-end task through the whole lane set
+    (partition → build → verify → review → merge) with telemetry, plus a short
+    regression sweep and the two open frictions re-checked.
+- Earlier this turn (2026-09-26, drill v14 follow-up):
   - **drill v14 results (report on the Desktop): 21 PASS / 1 FAIL / 7 NOT RUN.**
     Closed live: 007 (probe, both variants), 020, 027 (161 = header on direct /
     workflow / fork), 028 (`UNKNOWN_MODEL` on both paths), 029 (555-char worker

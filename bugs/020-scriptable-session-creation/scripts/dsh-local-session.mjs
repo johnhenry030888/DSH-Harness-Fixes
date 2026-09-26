@@ -311,6 +311,11 @@ async function main() {
       sessionId: created.sessionId,
       ...(created.agentPreset === undefined ? {} : { agentPreset: created.agentPreset }),
       cwd,
+      // The PID of the server this call booted: a caller asserting "no stray
+      // server" can compare against its pre-call baseline instead of guessing
+      // which of several `dsh web` processes is the new one (drill v15 #3).
+      webPid: child.pid,
+      ...(args.keep ? { kept: true } : {}),
       baseUrl: baseUrl.href,
       prompted,
       ...observed,

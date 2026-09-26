@@ -73,6 +73,10 @@ session's first `turn/end` and reports the composition alongside the ids:
  "assistantText":"…","turnEndReason":{"kind":"completed"},"waitedMs":16958}
 ```
 
+- the result also carries `webPid` (the server this call booted, and `kept: true`
+  with `--keep`), so a caller asserting "no stray server" compares against its
+  pre-call baseline instead of guessing which of several `dsh web` processes is
+  new (drill v15 friction #3);
 - the wait is bounded by `--turn-timeout` (default `max(--timeout, 120000)`); a
   timed-out wait still exits 0 with whatever it observed, so "queued" and
   "answered" are distinguishable;
