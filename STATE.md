@@ -8,6 +8,41 @@
   016, 020, 026-030 — landed from drill v12's findings plus the orchestrator
   efficiency pass). Drill v13 then closed fix 011: **ten clean
   `standard → orchestrator` switch samples**, no 176-tool mount in any.
+- What changed this turn (2026-09-26, drill v18 follow-up):
+  - **drill v18: 4 bars met / 5 missed; doctrine fix 1 confirmed.** Merge
+    395.3 -> 105.2 s, workflow 848 -> 490.7 s, 0/15 mutations survived (second
+    family reproduced them), 0 ordering violations, no hash moved. Misses: total
+    1 906 s, lead input share 26.7 %, merge tokens 17 532, sibling spread 2.54x,
+    preflight 145 s. True failure: the lead's own checklist row D10 was
+    arithmetically impossible — a builder refused to bend its code and reported it
+    (68 s repair round-trip).
+  - **Persona corrected (backup `agent.cordis.yml.pre-v19-20260926`, four
+    sentences):** delegate the **measurement** as well as the verification (one
+    cheap lane per evidence bundle returning a compact table) and keep a preflight
+    to one check-all + one route list + one refusal probe (~25 s), because 62 lead
+    calls / 26.7 % input share / 145 s preflight are one behaviour; **machine-check
+    a frozen checklist** (tokenize each row's input with the spec's own rules and
+    assert its expected output is self-consistent) before freezing it; a pinned
+    merge must currently leave `agent()` — prove the pin from the child's header
+    and budget the ~73 s handoff, or use a diff-and-dedupe remit inside the
+    workflow; and child tool counts are read per child (v18: 161 for both direct
+    and workflow children; v17's 162 has not reproduced).
+  - **Open items now six** (top first): (1) `agent()` accepts no `effort` option,
+    so a right-sized merge cannot stay in the workflow (v18 measured the 72.8 s
+    handoff cost); (2) resolved effort + provenance on the workflow agent records,
+    and an explicit effort-or-default marker from every adapter (a mimo stage
+    header carries no effort key at all); (3) `list_agents` should render the
+    delegation's declared target, which the ordering guard already computes;
+    (4) surface the steer delivery/boundary stamps (the transcript already carries
+    them); (5) a persistent scratch dir for read-only lanes; (6) the guard's
+    refusal wording quotes a **referenced** path as "the writer's declared work"
+    (v18: `wf/WF-BRIEF.md`, a lead-owned file neither writer owned) — the
+    extraction harvests every absolute path in the writer's prompt, which is safe
+    but should not be described as ownership.
+  - **Drill v19 written** (`/home/john/Documents/dsh-drill-archive/prompts/orchestrator-drill-prompt-v19.md`):
+    the cost-discipline run — same end-to-end shape with the measurement
+    delegated, bars on lead input share (<= ~17 %), preflight (<= 60 s), total
+    (<= ~1 500 s), workflow incl. handoff (<= ~600 s) and 0 surviving mutations.
 - Desktop sweep (2026-09-26): every drill artifact except the active v18 prompt
   moved to `~/Documents/dsh-drill-archive/` — `prompts/` (18, plus `prompts/opencode/`
   with the 5 batch-fix prompts), `reports/` (16), `evidence/` (16), `roots/` (16

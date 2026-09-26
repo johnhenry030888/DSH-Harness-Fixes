@@ -25,6 +25,22 @@ Verification note (2026-09-26, drill v13): fix 011 is **CLOSED** — ten clean
 corroborated at
 transcript level, no 176-tool mount.
 
+Verification note (2026-09-26, drill v18, bounded efficiency run): **4 bars met,
+5 missed — and the bar it existed to test is confirmed.** Doctrine 1 is proved:
+running stage 1 in `pipeline()` and the merge as a directly-delegated,
+row-pinned `subagent_fast` child (header `"reasoningEffort": "low"`) cut the merge
+**395.3 s -> 105.2 s** and the workflow sub-task **848 s -> 490.7 s** (~42 %), at
+the price of a 72.8 s inter-stage handoff that `agent()` cannot avoid because it
+accepts no effort option. The e2e task held: **0/15 mutations survived**,
+independently reproduced by a second family, 0 ordering violations, no artifact
+hash moved. Misses: total wall 1 906 s (bar 1 500), lead input share **26.7 %**
+(bar 17 % — the same inline-measurement behaviour as v17's 24.0 %), merge output
+tokens 17 532 (bar 15 000, still 69 % below v17), sibling spread 2.54x (bar 2x,
+with a route whose header carries no effort key at all) and a 145 s preflight
+(bar 60 s). Its own true failure: the lead's frozen checklist row D10 was
+arithmetically impossible (3 tokens in, 4 occurrences out) — caught by a builder's
+refusal, repaired in 68 s.
+
 Verification note (2026-09-26, drill v17, efficiency re-run): **PASS with one
 negative result.** Doctrine fix 1 paid (the guard was dispatched through a
 read-only row, refused naming the declared paths, then admitted — no un-fireable
