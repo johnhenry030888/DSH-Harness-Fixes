@@ -8,6 +8,44 @@
   016, 020, 026-030 — landed from drill v12's findings plus the orchestrator
   efficiency pass). Drill v13 then closed fix 011: **ten clean
   `standard → orchestrator` switch samples**, no 176-tool mount in any.
+- What changed this turn (2026-09-26, drill v19 follow-up):
+  - **drill v19: the cost-discipline fix worked.** Lead share 26.7 % -> **15.32 %**,
+    preflight 145 -> **25 s**, lead calls 62 -> **27** with **zero**
+    transcript-decompression calls, pinned merge **37.0 s / 1 887 tokens** (both of
+    its bars met), checklist machine-checked before freezing (`rows=13
+    inconsistent=0`), 16/18 mutations killed with the 2 survivors **proved
+    equivalent**, 0 ordering violations, no hash moved. Missed: total wall 1 592 s
+    (bar 1 500) and both workflow bars — stage 1 ran at the lead's inherited `max`
+    (577.7 s barrier) because `agent()` cannot express effort; and the literal
+    "0 survivors" bar.
+  - **Persona corrected (backup `agent.cordis.yml.pre-v20-20260926`, six
+    sentences):** time-box measurement lanes and demand a stat-able progress
+    artifact (v19's silent lane cost a duplicate lane: 182.8 s / 62.9 k tokens) and
+    name the lead explicitly with `delegationDepth: 0` + the 178-tool cross-check
+    (a lane that guessed by event volume published 17.3 % for a true 15.32 %);
+    budget a `parallel` barrier as the slowest sibling **at your own effort**;
+    **effort-sensitive fan-out belongs in the pinned `subagent*` rows, not in
+    `workflow`** (a stage cannot be pinned — that is exactly what cost v19 both
+    workflow bars, while its pinned merge cleared both of its own); a schema-bearing
+    workflow stage advertises 162 tools vs a direct child's 161 (per-child, never
+    universal); the survivor bar is **zero falsifiable survivors** with equivalence
+    proved; and run the closing suite with `-p no:cacheprovider` so the artifact
+    directory matches its hashes.
+  - **Open items unchanged in count (six), re-ranked:** (1) `agent()` has no
+    `effort` option (v19 confirms `worker.cjs:224` `DEFERRED_AGENT_OPTIONS` and the
+    `:521` `UNSUPPORTED_OPTION` rejection; drill-estimated payoff: workflow total
+    ~410 s); (2) workflow resolved effort + an adapter effort-or-default marker (a
+    longcat header carries no `reasoningEffort` key at all); (3) the ordering
+    guard's declared-scope harvest takes *referenced* paths from prompt text and
+    refused two legitimate probes, making a literal re-admission impossible;
+    (4) `list_agents` declared target; (5) steer delivery/boundary stamps; (6)
+    read-only lane scratch. New observation to re-check: v19 reports the 027
+    banner carries the parent and the 17 removed tools **but no numeric count**
+    (v14/v15 saw the count sentence) — needs a targeted look, not a code change.
+  - **Drill v20 written** (`~/Desktop/orchestrator-drill-prompt-v20.md`): the
+    closure run — same bars as v19 plus a time-boxed measurement lane, the pinned
+    fan-out rule, and an explicit report on whether the workflow path was used at
+    all.
 - What changed this turn (2026-09-26, drill v18 follow-up):
   - **drill v18: 4 bars met / 5 missed; doctrine fix 1 confirmed.** Merge
     395.3 -> 105.2 s, workflow 848 -> 490.7 s, 0/15 mutations survived (second

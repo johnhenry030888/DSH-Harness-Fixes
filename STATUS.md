@@ -25,6 +25,23 @@ Verification note (2026-09-26, drill v13): fix 011 is **CLOSED** — ten clean
 corroborated at
 transcript level, no 176-tool mount.
 
+Verification note (2026-09-26, drill v19, cost-discipline run): **the doctrine
+paid.** Lead input share fell **26.7 % -> 15.32 %** (v16 15.6 %), the preflight
+fell **145 s -> 25 s**, and the lead's own model calls fell **62 -> 27** (only 5
+classified as measurement, 0 transcript-decompression calls): the telemetry table
+was produced by a delegated lane, not inline. The pinned merge cleared both of its
+bars — **37.0 s and 1 887 output tokens** (-90 % against the token bar; v17:
+55 702) — and the checklist machine check ran before freezing (`rows=13
+inconsistent=0`), eliminating v18's impossible-row class. Quality held: 16 of 18
+mutations killed and the 2 survivors **proved equivalent** (exhaustive +
+randomized proofs, independently reproduced), review by a non-authoring family,
+0 ordering violations, no hash moved. Missed: total wall 1 592 s (bar 1 500) and
+both workflow bars (barrier 577.7 s -> 644.4 s) because `agent()` still cannot
+express effort and both stage-1 candidates ran at the lead's `max`; the literal
+"0 survivors" bar by two equivalent mutants. New cost driver: the primary
+measurement lane went silent for ~12 min with no progress artifact, and the
+duplicate lane dispatched against it wasted 182.8 s / 62.9 k tokens.
+
 Verification note (2026-09-26, drill v18, bounded efficiency run): **4 bars met,
 5 missed — and the bar it existed to test is confirmed.** Doctrine 1 is proved:
 running stage 1 in `pipeline()` and the merge as a directly-delegated,
