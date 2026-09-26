@@ -1,0 +1,47 @@
+--- pristine/tool-bash/lib/index.js
++++ installed/tool-bash/lib/index.js
+@@ -122,9 +122,25 @@
+ 	if (args.timeoutMs !== void 0 && (!Number.isFinite(args.timeoutMs) || args.timeoutMs <= 0)) throw new Error(`invalid timeoutMs: expected a positive number, got ${JSON.stringify(args.timeoutMs)}`);
+ 	validateEscalationArgs(args.sandbox_permissions, args.justification);
+ }
+-function bashDescription(backgroundEnabled, escalationModes) {
++/**
++ * Append the flag that keeps pytest from probing an unwritable cache location,
++ * preserving any ambient `PYTEST_ADDOPTS` value. A read-only lane has no
++ * writable workspace, so pytest's cache provider would otherwise print
++ * `PytestCacheWarning: could not create cache path … Read-only file system` on
++ * every bare run and push reviewers toward a non-pinned command (drill v11
++ * friction #5).
++ * @param ambient - the inherited `PYTEST_ADDOPTS` value, when one is set.
++ * @returns the value the read-only shell call should export.
++ */
++function readOnlyPytestAddopts(ambient) {
++	const flag = "-p no:cacheprovider";
++	if (ambient === void 0 || ambient.trim().length === 0) return flag;
++	return ambient.includes(flag) ? ambient : `${ambient} ${flag}`;
++}
++function bashDescription(backgroundEnabled, escalationModes, confined) {
+ 	const background = backgroundEnabled ? "Set `run_in_background: true` for long-running commands: the call returns a job id immediately; read its output with `job_output` and stop it with `job_kill`." : "Background execution is not available; long-running commands must finish within the timeout.";
+-	const base = `Execute a bash command (\`bash -c\`) and return its stdout/stderr. Each call runs in a fresh shell: no state (cwd, variables, functions) persists between calls — pass \`workdir\` instead of using \`cd\`. Non-zero exits are reported as \`[exit code: N]\`. Current harness environment facts are exposed through managed \`$${DSH_ENV_PREFIX}*\` variables; inspect them when needed. Commands may run under a file sandbox; a blocked file operation is reported as \`[sandbox: file access denied under <mode> mode]\` — a policy denial, not a bug in the command; do not retry another way. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. ` + background;
++	const readOnly = confined ? " Under a read-only file policy this tool sets `PYTEST_ADDOPTS` to include `-p no:cacheprovider` (appending to any existing value), so the pinned `python3 -m pytest --import-mode=importlib` runs clean without a writable cache path; a wider policy leaves it untouched." : "";
++	const base = `Execute a bash command (\`bash -c\`) and return its stdout/stderr. Each call runs in a fresh shell: no state (cwd, variables, functions) persists between calls — pass \`workdir\` instead of using \`cd\`. Non-zero exits are reported as \`[exit code: N]\`. Current harness environment facts are exposed through managed \`$${DSH_ENV_PREFIX}*\` variables; inspect them when needed. Commands may run under a file sandbox; a blocked file operation is reported as \`[sandbox: file access denied under <mode> mode]\` — a policy denial, not a bug in the command; do not retry another way. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. ` + background + readOnly;
+ 	if (escalationModes.length === 0) return base;
+ 	return base + " Attempting a command the sandbox may deny is safe and expected: run it and read the marker rather than assuming the denial. When a command is denied and a wider mode would let it succeed, escalate immediately in the same turn — the one sanctioned exception to a denial: retry the exact same command once with `sandbox_permissions` (the narrowest wider mode that suffices) plus a one-sentence `justification`. Do not detour through chat to ask permission first — the approval prompt raised by that retry is how the user consents. If the session states approval prompts are disabled, there is no exception: a denial is final — do not set `sandbox_permissions`. Never escalate speculatively: ground the request in a real denial — normally the one this command just hit; escalating up front is fine only when this session already denied the same access. A rejected escalation is final for that command — stop and explain, never work around it — but it does not forbid attempting or escalating other commands later.";
+ }
+@@ -258,7 +274,7 @@
+ 	});
+ 	ctx.tools.register(defineTool({
+ 		name: "bash",
+-		description: bashDescription(backgroundEnabled, escalationModes),
++		description: bashDescription(backgroundEnabled, escalationModes, defaultMode !== void 0),
+ 		parameters: {
+ 			command: {
+ 				type: "string",
+@@ -398,6 +414,7 @@
+ 				...workdir !== void 0 ? { workdir } : {},
+ 				...args.timeoutMs !== void 0 ? { timeoutMs: args.timeoutMs } : {},
+ 				dshEnv,
++				...policy?.mode === "read-only" ? { env: { PYTEST_ADDOPTS: readOnlyPytestAddopts(process.env.PYTEST_ADDOPTS) } } : {},
+ 				...policy !== void 0 ? { sandboxPolicy: policy } : {}
+ 			};
+ 			if (args.run_in_background === true) {

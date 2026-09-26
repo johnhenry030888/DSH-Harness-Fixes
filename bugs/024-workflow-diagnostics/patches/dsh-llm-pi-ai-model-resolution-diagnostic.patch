@@ -1,0 +1,36 @@
+--- pristine/llm-pi-ai/lib/index.js
++++ installed/llm-pi-ai/lib/index.js
+@@ -1,5 +1,5 @@
+ import { launchEnvironmentOf } from "@deepseek-ai/dsh-launch-environment";
+-import { CONTEXT_WINDOW_EXCEEDED_CODE, EMPTY_RESPONSE_CODE, INVALID_CREDENTIAL_CODE, LlmAdapter, LlmError, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, assertUsableApiKey, attributionHeaders, contentHasImage, isContextWindowExceededError, isQuotaExceededError, normalizeApiKey, offloadRequestImagesWithPolicy, offloadedImageText, requestImageHandleText, resolveImageAttachmentAccess, resolveRetryPolicy } from "@deepseek-ai/dsh-llm";
++import { CONTEXT_WINDOW_EXCEEDED_CODE, EMPTY_RESPONSE_CODE, INVALID_CREDENTIAL_CODE, LlmAdapter, LlmError, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, assertUsableApiKey, attributionHeaders, contentHasImage, isContextWindowExceededError, isQuotaExceededError, modelResolutionDiagnostic, normalizeApiKey, offloadRequestImagesWithPolicy, offloadedImageText, requestImageHandleText, resolveImageAttachmentAccess, resolveRetryPolicy } from "@deepseek-ai/dsh-llm";
+ import { deepEqualJson } from "@deepseek-ai/dsh-util-values";
+ import { createModels, createProvider, getSupportedThinkingLevels, isContextOverflow } from "@earendil-works/pi-ai";
+ import { MAX_TIMER_DELAY_MS, idleWatchdog, timeoutOf } from "@deepseek-ai/dsh-timeout";
+@@ -2104,13 +2104,24 @@
+ 		if (profile === void 0) throw new LlmError(`pi-ai adapter does not own provider "${provider}"`, "NO_ADAPTER");
+ 		return profile;
+ 	}
+-	/** The configured descriptor for one exact route/model pair within one snapshot. */
++	/**
++	* The configured descriptor for one exact route/model pair within one
++	* snapshot. An unresolvable id is classified against the provider catalog
++	* through the shared {@link modelResolutionDiagnostic} formatter, so this
++	* path and the delegation tool's route guard emit the same message and
++	* machine code for the same condition (MODEL_NOT_CONFIGURED when the
++	* catalog serves the id but the deployment does not configure it,
++	* UNKNOWN_MODEL when the catalog does not know it).
++	*/
+ 	modelOf(snapshot, provider, model) {
+ 		const profile = this.profileOf(snapshot, provider);
+ 		const failure = profile.modelErrors.get(model) ?? (profile.piProvider === void 0 ? profile.catalogError : void 0);
+ 		if (failure !== void 0) throw new LlmError(failure, "INVALID_CONFIG");
+ 		const resolved = snapshot.models.getModel(provider, model);
+-		if (resolved === void 0) throw new LlmError(`pi-ai provider "${provider}" has no configured model "${model}"`, "UNKNOWN_MODEL");
++		if (resolved === void 0) {
++			const diagnostic = modelResolutionDiagnostic(provider, model, catalogModels(provider).has(model));
++			throw new LlmError(diagnostic.message, diagnostic.code);
++		}
+ 		return resolved;
+ 	}
+ 	providerInfo(provider) {

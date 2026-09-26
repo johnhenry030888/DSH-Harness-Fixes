@@ -1,0 +1,65 @@
+--- pristine/tool-workflow/lib/index.js
++++ installed/tool-workflow/lib/index.js
+@@ -36,6 +36,15 @@
+ */
+ function createWorkflowRecorder(ctx) {
+ 	const active = /* @__PURE__ */ new Map();
++	/**
++	* First failed member of each active run, kept beside the run's recorded
++	* session so `run-end` can summarise the failures the run contained. A
++	* completed run whose script treated a stage's `null` as ordinary data
++	* still reports `stopReason: "completed"`; this map is what keeps the
++	* member failure discoverable on the run record itself instead of only on
++	* the per-member `agent-end` event (drill v11 friction #2).
++	*/
++	const failures = /* @__PURE__ */ new Map();
+ 	const append = (session, type, data) => {
+ 		const appendRecord = session.append.bind(session);
+ 		try {
+@@ -62,6 +71,16 @@
+ 	ctx.on("workflow/agent-end", (info, agent) => {
+ 		const session = active.get(info.id);
+ 		if (session === void 0) return;
++		if (agent.outcome === "failed") {
++			const existing = failures.get(info.id);
++			if (existing === void 0) failures.set(info.id, {
++				count: 1,
++				...agent.error === void 0 ? {} : { error: agent.error },
++				...agent.requestedProvider === void 0 ? {} : { requestedProvider: agent.requestedProvider },
++				...agent.requestedModel === void 0 ? {} : { requestedModel: agent.requestedModel }
++			});
++			else existing.count += 1;
++		}
+ 		if (!append(session, "tool-workflow/agent-end", {
+ 			runId: info.id,
+ 			seq: agent.seq,
+@@ -80,14 +99,25 @@
+ 		},
+ 		finish(runId, stopReason) {
+ 			const session = active.get(runId);
+-			if (session !== void 0) append(session, "tool-workflow/run-end", {
+-				runId,
+-				stopReason
+-			});
++			if (session !== void 0) {
++				const failure = failures.get(runId);
++				append(session, "tool-workflow/run-end", {
++					runId,
++					stopReason,
++					...failure === void 0 ? {} : {
++						failedAgents: failure.count,
++						...failure.error === void 0 ? {} : { error: failure.error },
++						...failure.requestedProvider === void 0 ? {} : { requestedProvider: failure.requestedProvider },
++						...failure.requestedModel === void 0 ? {} : { requestedModel: failure.requestedModel }
++					}
++				});
++			}
+ 			active.delete(runId);
++			failures.delete(runId);
+ 		},
+ 		abandon: (runId) => {
+ 			active.delete(runId);
++			failures.delete(runId);
+ 		}
+ 	};
+ }

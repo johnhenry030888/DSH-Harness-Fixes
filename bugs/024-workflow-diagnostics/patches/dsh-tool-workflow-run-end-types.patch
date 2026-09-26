@@ -1,0 +1,48 @@
+--- pristine/tool-workflow/lib/types/types.d.ts
++++ installed/tool-workflow/lib/types/types.d.ts
+@@ -18,17 +18,44 @@
+     readonly label: string;
+     readonly phase?: string;
+     readonly childId: SessionId;
++    /** The provider the `agent()` call asked for, when one was named. */
++    readonly requestedProvider?: string;
++    /** The model the `agent()` call asked for, when one was named. */
++    readonly requestedModel?: string;
+ }
+ /** Settles one previously started workflow member. */
+ export interface ToolWorkflowAgentEndData {
+     readonly runId: WorkflowRunId;
+     readonly seq: number;
+     readonly outcome: WorkflowAgentOutcome;
++    /** Why a non-`completed` member failed, when a provider-authored diagnostic exists. */
++    readonly error?: string;
++    /** The provider the `agent()` call asked for, when one was named. */
++    readonly requestedProvider?: string;
++    /** The model the `agent()` call asked for, when one was named. */
++    readonly requestedModel?: string;
+ }
+-/** Settles one workflow run after its live resources reach quiescence. */
++/**
++ * Settles one workflow run after its live resources reach quiescence.
++ *
++ * A run's `stopReason` describes the script, not its members: a script that
++ * treated a failed stage's `null` as ordinary data still stops `completed`.
++ * The optional failure summary therefore keeps a contained member failure
++ * discoverable on the run record itself: `failedAgents` counts the failed
++ * members and `error`/`requestedProvider`/`requestedModel` repeat the FIRST
++ * failure's attribution. Per-member detail remains on each `agent-end`.
++ */
+ export interface ToolWorkflowRunEndData {
+     readonly runId: WorkflowRunId;
+     readonly stopReason: WorkflowStopReason;
++    /** Number of failed members when the run contained any; absent when none failed. */
++    readonly failedAgents?: number;
++    /** The first failed member's diagnostic, when it carried one. */
++    readonly error?: string;
++    /** The first failed member's requested provider, when one was named. */
++    readonly requestedProvider?: string;
++    /** The first failed member's requested model, when one was named. */
++    readonly requestedModel?: string;
+ }
+ declare module '@deepseek-ai/dsh-session/types' {
+     interface SessionEventMap {

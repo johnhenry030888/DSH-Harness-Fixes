@@ -12,8 +12,12 @@ marker() {
   }
 }
 
-# Route rejection classification (delegation + discovery).
-marker "does not serve a model with id" "$TOOL"
+# Route rejection classification (delegation + discovery). The
+# served-but-unconfigured and unknown-id classes render through the shared
+# dsh-llm formatter since bug 024; assert the classes wherever they live,
+# never one copy of the wording.
+marker "function modelResolutionDiagnostic(provider, model, served)" "$LLM"
+marker "does not serve a model with id" "$LLM"
 marker "is not allowed for this Session" "$TOOL"
 marker "it is outside the Session's allowed routes" "$TOOL"
 grep -q "async function assertAllowedModelSelection(llm, policy," "$TOOL" 2>/dev/null || {

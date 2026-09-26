@@ -1,0 +1,15 @@
+# Temporary verification overlay (bug 023): a readOnly delegation row on the
+# headless profile. Not part of the fix.
+- insert:
+    - id: tool-subagent-ro-p23
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: subagent_ro_p23
+        backgroundMode: one-shot
+        readOnly: true
+        maxDepth: 1
+        agentOptions:
+          provider: opencode-go
+          model: mimo-v2.6-flash
+          reasoningEffort: low

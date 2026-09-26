@@ -1,17 +1,21 @@
 # Status
 
-All twenty local fixes are applied to the `dsh` 0.1.5-rc.2 bundle (bugs 001-004
-re-applied 2026-09-20; bug 005 added 2026-09-25; bugs 006-010 added 2026-09-25
-from the orchestrator drill v3/v4 findings; bugs 011-014, 018, 019 added
-2026-09-26 from drill v6/v7/v8 findings; bugs 014b, 017, 021, 022 added
-2026-09-26 from drill v9/v10 findings), with patches generated against
-pristine published sources and verified by pristine->reapply round-trips.
+All twenty-three local fixes are applied to the `dsh` 0.1.5-rc.2 bundle (bugs
+001-004 re-applied 2026-09-20; bug 005 added 2026-09-25; bugs 006-010 added
+2026-09-25 from the orchestrator drill v3/v4 findings; bugs 011-014, 018, 019
+added 2026-09-26 from drill v6/v7/v8 findings; bugs 014b, 017, 021, 022 added
+2026-09-26 from drill v9/v10 findings; bugs 023-025 added 2026-09-26 from
+drill v11 findings), with patches generated against pristine published sources
+and verified by pristine->reapply round-trips.
 
 Deployment note (2026-09-26): `~/.dsh/settings.yaml` now **deliberately**
 re-pins the eight `opencode-go.models` entries, so `llm.listModels()` serves the
 pinned 8. Bug 005's check no longer fails on a pin (it prints a NOTE); bug 012
 makes route rejection honest under a pin. Bug 009's check was updated to assert
-its class (wording superseded by 012's three-source classifier).
+its class (wording superseded by 012's three-source classifier); bug 024
+centralized the served-but-unconfigured/unknown-id wording in a shared
+`dsh-llm` formatter, so bugs 009's and 012's checks now assert their classes
+there (no fix patch of 009/012 changed).
 
 Stretch items: 015 (worker descriptor `toolFilter` — the descriptor half is
 covered by bug 018), 016 (catalog introspection — NOT implemented this batch;
@@ -41,6 +45,9 @@ only local auth path).
 | [019](bugs/019-child-write-scope/README.md) | no per-child write scope: workers can modify files they do not own | APPLIED to bundle 0.1.5-rc.2 (per-row `readOnly: true`: path-aware guard on `edit`/`write`/`present` + read-only sandbox for shell mutations, descriptor-durable) | NOT-FILED |
 | [021](bugs/021-read-only-no-temp-dir/README.md) | read-only lanes have no writable temporary directory (pytest dies before collecting) | APPLIED to bundle 0.1.5-rc.2 (`tempWriteRoots()` seam + bwrap private `--tmpfs /tmp` in every confined mode + Landlock/Seatbelt temp grants; live: bare pinned pytest `3 passed` on a `readOnly: true` lane, workspace still refused) | NOT-FILED |
 | [022](bugs/022-agent-preset-mount-path/README.md) | `agent-preset/selected` cannot say how the preset was mounted (direct vs picker switch) | APPLIED to bundle 0.1.5-rc.2 (one event writer records `mountPath: direct|switch` + `rowMount: mounted`; live on both paths via a headless overlay) | NOT-FILED |
+| [023](bugs/023-inspection-ordering-guard/README.md) | verify→review ordering has no mechanical guard: a live write-capable child can corrupt a concurrent read-only review | APPLIED to bundle 0.1.5-rc.2 (`INSPECTION_CONFLICT` refusal in `dsh-subagent` on both creation paths, keyed on live status + the resolved `sandbox/mode` policy + cwd-prefix overlap; `list_agents` rows expose `filePolicy` + `tree`; live: refused while the writer ran, same call returned `READY` after settlement) | NOT-FILED |
+| [024](bugs/024-workflow-diagnostics/README.md) | workflow `run-end` hides contained failures; one condition has two wordings by call path | APPLIED to bundle 0.1.5-rc.2 (`failedAgents`+`error`+requested route on `run-end`; shared `dsh-llm` `modelResolutionDiagnostic` with `MODEL_NOT_CONFIGURED`/`UNKNOWN_MODEL` codes used by pi-ai and the delegation classifier; live: identical sentence both paths, run-end carries `failedAgents: 2`) | NOT-FILED |
+| [025](bugs/025-read-only-pytest-cache/README.md) | read-only lanes emit a `PytestCacheWarning` and drift back to a workaround command | APPLIED to bundle 0.1.5-rc.2 (`PYTEST_ADDOPTS=-p no:cacheprovider` exported by read-only bash calls only, appended to any inherited value; live: read-only lane `3 passed` with no warning, write lane unchanged) | NOT-FILED |
 
 ## Legend
 

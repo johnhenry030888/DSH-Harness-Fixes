@@ -1,0 +1,24 @@
+# Temporary verification overlay (bug 024): fixed-pin direct delegation rows
+# whose preflight reaches the pi-ai adapter's model resolution, the same
+# condition the workflow path reaches. Not part of the fix.
+- insert:
+    - id: tool-subagent-pin-notconfigured-p24
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: subagent_pin_cfg_p24
+        backgroundMode: one-shot
+        maxDepth: 1
+        agentOptions:
+          provider: opencode-go
+          model: glm-5.3-flash
+    - id: tool-subagent-pin-unknown-p24
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: subagent_pin_unk_p24
+        backgroundMode: one-shot
+        maxDepth: 1
+        agentOptions:
+          provider: opencode-go
+          model: totally-invented-model-xyz

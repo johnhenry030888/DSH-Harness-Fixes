@@ -1,0 +1,104 @@
+--- pristine/subagent/lib/index.js
++++ installed/subagent/lib/index.js
+@@ -12,7 +12,7 @@
+ import { snapshotJsonValue } from "@deepseek-ai/dsh-util-values";
+ import { appendChunkedList, chunkedListSchema, iterateChunkedList } from "@deepseek-ai/dsh-chunked-list";
+ import { accessSync, constants, statSync } from "node:fs";
+-import { isAbsolute, resolve } from "node:path";
++import { isAbsolute, resolve, sep } from "node:path";
+ //#region lib/types/error.js
+ /**
+ * Typed failures shared by subagent service and provider operations.
+@@ -1735,6 +1735,76 @@
+ 	var e = new Error(message);
+ 	return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
+ });
++//#region lib/types/inspection.js
++/**
++* Whether two working trees overlap by path prefix. Either side missing its
++* cwd is treated as overlapping, because the child then runs in the parent's
++* own tree and the conservative answer keeps the ordering rule.
++* @param left - one absolute working tree, or undefined.
++* @param right - the other absolute working tree, or undefined.
++* @returns whether one tree is the other or lies beneath it.
++*/
++function treesOverlap(left, right) {
++	if (left === void 0 || right === void 0) return true;
++	const a = resolve(left);
++	const b = resolve(right);
++	return a === b || a.startsWith(`${b}${sep}`) || b.startsWith(`${a}${sep}`);
++}
++/**
++* Live write-capable direct children of `parent` that are actively running
++* against a tree overlapping the requested read-only child's tree.
++*
++* "Write-capable" is read from the session's resolved sandbox policy — the
++* same `sandbox/mode` fold the enforcement dialects consume — because that is
++* the one durable property that distinguishes a lane allowed to mutate files
++* from bug 019's read-only lanes; the descriptor's `readOnly` flag and the
++* policy agree by construction (`applyChildComposition` writes both). A
++* child that already settled (status other than `running`) holds no claim: a
++* settlement notice is the authoritative handoff the caller must wait for.
++* @param ctx - context that may carry the live Agent registry and sandbox policy.
++* @param parent - the delegating parent whose direct children are inspected.
++* @param readOnlyRequested - the requested child's read-only flag.
++* @returns the conflicting live agents, in registry order.
++*/
++function inspectionConflicts(ctx, parent, readOnlyRequested) {
++	if (readOnlyRequested !== true) return [];
++	const agents = ctx.get("agents");
++	if (agents === void 0) return [];
++	const sandboxPolicy = ctx.get("sandboxPolicy");
++	const tree = parent.session.header.cwd;
++	const conflicts = [];
++	for (const candidate of agents.list()) {
++		if (candidate === parent) continue;
++		if (candidate.session.header.parentSession !== parent.session.header.id) continue;
++		if (candidate.status !== "running") continue;
++		if (sandboxPolicy?.overrideOf(candidate.session) === "read-only") continue;
++		if (!treesOverlap(tree, candidate.session.header.cwd)) continue;
++		conflicts.push(candidate);
++	}
++	return conflicts;
++}
++/**
++* Refuse a read-only delegation while a write-capable sibling is still
++* running against the same working tree. The verify→review ordering rule was
++* prose until drill v10 lost three of a reviewer's findings to a concurrently
++* live in-place verifier and v11 repeated the scheduling mistake; this is the
++* mechanical guard. The refusal names every conflicting child so the caller
++* can wait for its settlement notice (or interrupt_agent it) and retry the
++* exact same read-only call unchanged. Trees outside the parent's path prefix
++* are unaffected.
++* @param ctx - context carrying the live Agent registry and sandbox policy.
++* @param parent - the delegating parent starting the read-only child.
++* @param readOnlyRequested - the requested child's read-only flag.
++* @throws {SubagentError} `INSPECTION_CONFLICT` naming the live writer(s).
++*/
++function assertInspectionOrdering(ctx, parent, readOnlyRequested) {
++	const conflicts = inspectionConflicts(ctx, parent, readOnlyRequested);
++	if (conflicts.length === 0) return;
++	const named = conflicts.map((agent) => `"${agent.id}"`).join(", ");
++	const tree = parent.session.header.cwd === void 0 ? "(the parent session workspace)" : `"${resolve(parent.session.header.cwd)}"`;
++	throw new SubagentError(`subagent: refused a read-only delegation while write-capable ${conflicts.length === 1 ? "agent" : "agents"} ${named} ${conflicts.length === 1 ? "is" : "are"} still running against the same tree ${tree} — a read-only review must not overlap a lane that may still mutate it. Wait for the child's settlement notice, or interrupt_agent it, then retry the same read-only call unchanged; trees outside this path prefix are unaffected.`, "INSPECTION_CONFLICT");
++}
++//#endregion
+ /**
+ * The continuable-subagent orchestration service behind `ctx.subagents`. Tool
+ * schema and host adapters are consumers of this one contract; foreground
+@@ -3002,6 +3072,7 @@
+ 		* @throws when continuation services are unavailable or materialization fails.
+ 		*/
+ 		async startContinuable(spec) {
++			assertInspectionOrdering(this.ctx, spec.request.parent, spec.request.readOnly);
+ 			return this.requireContinuations().startContinuable(spec);
+ 		}
+ 		/**
+@@ -3266,6 +3337,7 @@
+ 		* @returns the published holder-owned run.
+ 		*/
+ 		async start(name, request) {
++			assertInspectionOrdering(this.ctx, request.parent, request.readOnly);
+ 			const provider = this.expectProvider(name);
+ 			this.assertCapabilities(provider, request);
+ 			assertSubagentMaxDepth(request.maxDepth);

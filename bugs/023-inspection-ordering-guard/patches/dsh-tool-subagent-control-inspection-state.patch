@@ -1,0 +1,101 @@
+--- pristine/tool-subagent-control/lib/types/list-agents.js
++++ installed/tool-subagent-control/lib/types/list-agents.js
+@@ -36,12 +36,13 @@
+  * caller tell "no live agent at 12:01:03" from a later state instead of
+  * treating one sample as a durable outcome.
+  * @param agents - live Agent registry.
++ * @param sandboxPolicy - the sandbox-policy service, when this composition mounts one.
+  * @param entry - the durable listing row.
+  * @param position - optional descendant position annotation.
+  * @param checkedAt - ISO timestamp of this listing's registry sample.
+  * @returns the model-facing entry, or undefined for a one-shot child.
+  */
+-function project(agents, entry, position, checkedAt) {
++function project(agents, sandboxPolicy, entry, position, checkedAt) {
+     const at = position === undefined ? {} : { parent: position.parentId, depth: position.depth };
+     if (entry.kind === 'diagnostic') {
+         return { kind: 'diagnostic', id: entry.id, reason: entry.reason, ...at };
+@@ -50,12 +51,23 @@
+     // never selects them; discovery still traversed them for descendants.
+     if (entry.mode !== 'continuable')
+         return undefined;
++    // The file policy is sampled from the same resolved `sandbox/mode` fold
++    // the enforcement dialects consume, so `writes` means this live child can
++    // still mutate files and `read-only` means it cannot. Together with the
++    // child's tree it makes the inspection state the ordering rule needs
++    // observable before a review is dispatched.
++    const live = agents.get(entry.id);
++    const policy = live === undefined || sandboxPolicy === undefined ? {} : {
++        filePolicy: sandboxPolicy.overrideOf(live.session) === 'read-only' ? 'read-only' : 'writes',
++        ...live.session.header.cwd === undefined ? {} : { tree: live.session.header.cwd },
++    };
+     return {
+         kind: 'child',
+         id: entry.id,
+         label: entry.label,
+         status: statusOf(agents, entry.id),
+         checkedAt,
++        ...policy,
+         ...at,
+     };
+ }
+@@ -73,7 +85,11 @@
+             + 'inside a long tool call, so a child looping in bash reads as running), idle means a live agent loaded '
+             + 'but between turns (it may be waiting on agents it started), and ready means no live agent remains — '
+             + 'the conversation is in storage, resumable rather than terminal and not a result waiting to be '
+-            + 'collected. Treat the row as last-known-as-of `checkedAt`, not as a durable outcome; a settlement '
++            + 'collected. Each live row also samples the child\'s file policy — `read-only` cannot modify files, '
++            + '`writes` can — and its working tree, so the verify→review order is checkable before a review is '
++            + 'dispatched: a read-only delegation is refused while a live `writes` child is still running against '
++            + 'the same tree (wait for its settlement notice or interrupt_agent it, then retry). '
++            + 'Treat the row as last-known-as-of `checkedAt`, not as a durable outcome; a settlement '
+             + 'notice is the authoritative completion signal. A `send_message` steers a running child at its nearest '
+             + 'step boundary or starts a turn for an idle or ready child, and a direct child remains a `send_message` '
+             + 'candidate in every status. The snapshot is not a delivery '
+@@ -103,6 +119,8 @@
+                                 label: { type: 'string', required: true },
+                                 status: { type: 'string', required: true, enum: ['running', 'idle', 'ready'] },
+                                 checkedAt: { type: 'string', required: true },
++                                filePolicy: { type: 'string', enum: ['read-only', 'writes'] },
++                                tree: { type: 'string' },
+                                 parent: { type: 'string' },
+                                 depth: { type: 'number' },
+                             },
+@@ -134,8 +152,11 @@
+                                 const at = request.scope === 'descendants'
+                                     ? ` parent=${String(entry.parent)} depth=${String(entry.depth)}`
+                                     : '';
++                                const policy = entry.kind === 'child' && entry.filePolicy !== undefined
++                                    ? ` [${entry.filePolicy}${entry.tree === undefined ? '' : ` in ${entry.tree}`}]`
++                                    : '';
+                                 return entry.kind === 'child'
+-                                    ? `${entry.id} [${entry.status} as of ${entry.checkedAt}]${at} — ${entry.label}`
++                                    ? `${entry.id} [${entry.status} as of ${entry.checkedAt}]${at} — ${entry.label}${policy}`
+                                     : `${entry.id} [diagnostic: ${entry.reason}]${at}`;
+                             }).join('\n'),
+                     }];
+@@ -148,6 +169,7 @@
+                 throw new Error('list_agents requires a calling agent (exec.agent was undefined)');
+             }
+             const request = resolveListAgentsRequest(args);
++            const sandboxPolicy = ctx.get('sandboxPolicy');
+             // The registry drains started tool bodies, so the scan must observe the
+             // call's signal rather than finish a slow catalog after cancellation.
+             switch (request.scope) {
+@@ -155,14 +177,14 @@
+                     const entries = await ctx.subagents.listChildren(parent.id, exec.signal);
+                     const checkedAt = new Date().toISOString();
+                     return entries
+-                        .map(entry => project(ctx.agents, entry, undefined, checkedAt))
++                        .map(entry => project(ctx.agents, sandboxPolicy, entry, undefined, checkedAt))
+                         .filter(entry => entry !== undefined);
+                 }
+                 case 'descendants': {
+                     const entries = await ctx.subagents.listDescendants(parent.id, exec.signal);
+                     const checkedAt = new Date().toISOString();
+                     return entries
+-                        .map(entry => project(ctx.agents, entry, entry, checkedAt))
++                        .map(entry => project(ctx.agents, sandboxPolicy, entry, entry, checkedAt))
+                         .filter(entry => entry !== undefined);
+                 }
+                 /* v8 ignore next 2 -- the resolver normalizes the schema-validated closed scope before dispatch. */

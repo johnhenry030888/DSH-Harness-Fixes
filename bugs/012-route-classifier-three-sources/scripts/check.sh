@@ -14,8 +14,11 @@ marker() {
 }
 
 # Three-source classifier + the distinct served-but-not-configured class.
+# Since bug 024 the served-but-unconfigured and unknown-id classes render
+# through the shared dsh-llm formatter, so the class marker lives there; the
+# tool keeps the configured-but-outside-allowlist wording.
 marker "async function modelRouteRejection(llm, provider, model)" "$TOOL"
-marker "is not configured for this deployment" "$TOOL"
+marker "is not configured for this deployment" "$LLM"
 marker "the model is configured for this deployment but it is outside the Session's allowed routes" "$TOOL"
 # Both rejection sites route through the classifier.
 if [ "$(grep -c "modelRouteRejection(llm," "$TOOL" 2>/dev/null)" -lt 2 ]; then

@@ -1,0 +1,52 @@
+--- pristine/llm/lib/index.js
++++ installed/llm/lib/index.js
+@@ -132,6 +132,43 @@
+ /** Canonical provider-neutral code for an exhausted account quota or balance. */
+ const QUOTA_EXCEEDED_CODE = "QUOTA";
+ /**
++* Canonical provider-neutral code for a model id the provider's catalog
++* serves but this deployment does not configure. Distinct from
++* {@link UNKNOWN_MODEL_CODE} because the fix differs: correct the deployment's
++* configured model list or pick a configured route, rather than correcting a
++* typo.
++*/
++const MODEL_NOT_CONFIGURED_CODE = "MODEL_NOT_CONFIGURED";
++/**
++* Canonical provider-neutral code for a model id the provider's catalog does
++* not know at all.
++*/
++const UNKNOWN_MODEL_CODE = "UNKNOWN_MODEL";
++/**
++* One canonical diagnostic for a model id that cannot be routed. Every call
++* path that rejects a route renders through this formatter — the pi-ai
++* adapter's resolution failure and the delegation tool's route guard alike —
++* so the identical condition produces the identical message and machine
++* code whichever path reaches it (drill v11 friction #2: the workflow path
++* said `pi-ai provider … has no configured model … (UNKNOWN_MODEL)` while the
++* direct subagent tool said `serves model … but that model is not configured
++* for this deployment`, breaking error-matching automation).
++* @param provider - the provider route id.
++* @param model - the model id that could not be routed.
++* @param served - whether the provider's known catalog contains the id.
++* @returns the canonical message and its stable machine code.
++*/
++function modelResolutionDiagnostic(provider, model, served) {
++	if (served) return {
++		code: MODEL_NOT_CONFIGURED_CODE,
++		message: `LLM provider "${provider}" serves model "${model}", but that model is not configured for this deployment`
++	};
++	return {
++		code: UNKNOWN_MODEL_CODE,
++		message: `LLM provider "${provider}" does not serve a model with id "${model}"`
++	};
++}
++/**
+ * Canonical provider-neutral code for a response that completed normally but
+ * carried no content blocks at all. Providers occasionally emit a degenerate
+ * completion (a terminal stop with zero output); adapters classify it as this
+@@ -2363,4 +2400,4 @@
+ 	};
+ }
+ //#endregion
+-export { APP_IDENTITY, AssistantStreamAccumulator, BlockAssembler, CONTEXT_SUMMARY_MAX_CHARS, CONTEXT_WINDOW_EXCEEDED_CODE, EMPTY_RESPONSE_CODE, HarnessError, INVALID_CREDENTIAL_CODE, LlmAdapter, LlmAttemptId, LlmError, LlmRuntime, LlmRuntime as default, MessageId, ProviderRequestId, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, ToolCallId, assembleAssistantStream, assertUsableApiKey, assistantStreamChunks, assistantStreamFirstTokenTime, assistantStreamHasVisibleContent, assistantStreamHasVisibleText, attributionHeaders, boundContextSummary, callConfigEquals, chunkHasVisibleText, contentHasFile, contentHasImage, createAssistantMessage, createMessage, createSystemMessage, createToolResultMessage, createUserMessage, errorChain, expandAssistantStream, fileHandleText, freezeMessage, isAgentLoopRequest, isContextWindowExceededError, isHarnessError, isQuotaExceededError, isTokenDelta, isVisibleChunk, joinAssistantStreamText, lastAssistantStreamChunk, markAgentLoopRequest, normalizeApiKey, offloadRequestImagesWithPolicy, offloadedImagePrefixCount, offloadedImageText, projectFilesToText, projectImagesForTextModel, requestImageHandleText, resolveImageAttachmentAccess, resolveRetryPolicy, runFirstTokenTime, runFirstVisibleTime, textOnlyImageText, userAgent };
++export { APP_IDENTITY, AssistantStreamAccumulator, BlockAssembler, CONTEXT_SUMMARY_MAX_CHARS, CONTEXT_WINDOW_EXCEEDED_CODE, EMPTY_RESPONSE_CODE, HarnessError, INVALID_CREDENTIAL_CODE, LlmAdapter, LlmAttemptId, LlmError, LlmRuntime, LlmRuntime as default, MODEL_NOT_CONFIGURED_CODE, MessageId, ProviderRequestId, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, ToolCallId, UNKNOWN_MODEL_CODE, assembleAssistantStream, assertUsableApiKey, assistantStreamChunks, assistantStreamFirstTokenTime, assistantStreamHasVisibleContent, assistantStreamHasVisibleText, attributionHeaders, boundContextSummary, callConfigEquals, chunkHasVisibleText, contentHasFile, contentHasImage, createAssistantMessage, createMessage, createSystemMessage, createToolResultMessage, createUserMessage, errorChain, expandAssistantStream, fileHandleText, freezeMessage, isAgentLoopRequest, isContextWindowExceededError, isHarnessError, isQuotaExceededError, isTokenDelta, isVisibleChunk, joinAssistantStreamText, lastAssistantStreamChunk, markAgentLoopRequest, modelResolutionDiagnostic, normalizeApiKey, offloadRequestImagesWithPolicy, offloadedImagePrefixCount, offloadedImageText, projectFilesToText, projectImagesForTextModel, requestImageHandleText, resolveImageAttachmentAccess, resolveRetryPolicy, runFirstTokenTime, runFirstVisibleTime, textOnlyImageText, userAgent };
