@@ -1,0 +1,16 @@
+# Temporary verification overlay (bug 021): a readOnly delegation row.
+# Not part of the fix; used only to open a genuine read-only lane on the
+# headless profile, which does not mount the Orchestrator preset.
+- insert:
+    - id: tool-subagent-ro-p21
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: subagent_ro_p21
+        backgroundMode: one-shot
+        readOnly: true
+        maxDepth: 1
+        agentOptions:
+          provider: opencode-go
+          model: muse-spark-1.3-contributor
+          reasoningEffort: low

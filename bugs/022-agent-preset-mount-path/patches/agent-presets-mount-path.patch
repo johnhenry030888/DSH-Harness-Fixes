@@ -1,0 +1,47 @@
+--- pristine/agent-presets/lib/index.js	2026-09-26 11:37:40.515648748 +0200
++++ installed/agent-presets/lib/index.js	2026-09-26 11:37:40.519709581 +0200
+@@ -1079,6 +1079,26 @@
+ 	},
+ 	stateVersion: 1
+ };
++/**
++* THE write path for one session's agent-preset selection event. The event is
++* the projection's carrier (which preset the session runs) plus the mount
++* provenance the v6/v9 mount race lacked: `mountPath` says whether the preset
++* composed the agent at creation (`direct`) or arrived later through
++* {@link AgentPresets.select} (`switch`), and `rowMount` records the row-mount
++* outcome when the caller has one. The projection reads only `agentPreset`, so
++* the diagnostic fields never change which composition a session runs.
++* @param session - the session whose log records the mount.
++* @param agentPreset - the mounted preset id.
++* @param mountPath - how the preset reached the session.
++* @param rowMount - the row-mount outcome when the caller knows it.
++*/
++function setSessionAgentPreset(session, agentPreset, mountPath, rowMount) {
++	session.append("agent-preset/selected", {
++		agentPreset,
++		mountPath,
++		...rowMount === void 0 ? {} : { rowMount }
++	});
++}
+ //#endregion
+ //#region lib/types/index.js
+ /**
+@@ -1502,6 +1522,8 @@
+ 			const preset = await this.resolveMountable(id);
+ 			const standing = await this.ensureStanding(preset);
+ 			this.bindings.set(agentKey, bindScopeParent(agentKey, standing.key));
++			const session = agentKey.session;
++			if (session !== void 0) setSessionAgentPreset(session, preset.id, "direct", "mounted");
+ 			return preset;
+ 		}
+ 		/**
+@@ -1746,7 +1768,7 @@
+ 				agentPreset
+ 			});
+ 			const preset = await this.recompose(agent.ctx, agentPreset);
+-			agent.session.append("agent-preset/selected", { agentPreset: preset.id });
++			setSessionAgentPreset(agent.session, preset.id, "switch", "mounted");
+ 			return preset.id;
+ 		}
+ 		/**

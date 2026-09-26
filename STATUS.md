@@ -1,9 +1,10 @@
 # Status
 
-All sixteen local fixes are applied to the `dsh` 0.1.5-rc.2 bundle (bugs 001-004
+All twenty local fixes are applied to the `dsh` 0.1.5-rc.2 bundle (bugs 001-004
 re-applied 2026-09-20; bug 005 added 2026-09-25; bugs 006-010 added 2026-09-25
 from the orchestrator drill v3/v4 findings; bugs 011-014, 018, 019 added
-2026-09-26 from drill v6/v7/v8 findings), with patches generated against
+2026-09-26 from drill v6/v7/v8 findings; bugs 014b, 017, 021, 022 added
+2026-09-26 from drill v9/v10 findings), with patches generated against
 pristine published sources and verified by pristine->reapply round-trips.
 
 Deployment note (2026-09-26): `~/.dsh/settings.yaml` now **deliberately**
@@ -12,10 +13,11 @@ pinned 8. Bug 005's check no longer fails on a pin (it prints a NOTE); bug 012
 makes route rejection honest under a pin. Bug 009's check was updated to assert
 its class (wording superseded by 012's three-source classifier).
 
-Stretch items not shipped this batch: 015 (worker descriptor `toolFilter` — the
-descriptor half is covered by bug 018), 016 (catalog introspection), 017 (stop
-timestamp in the settlement notice), 020 (scriptable session creation —
-documented as NOT-FILED; the web process token remains the only local auth path).
+Stretch items: 015 (worker descriptor `toolFilter` — the descriptor half is
+covered by bug 018), 016 (catalog introspection — NOT implemented this batch;
+no seam-clean callable exists in the current composition), 020 (scriptable
+session creation — documented as NOT-FILED; the web process token remains the
+only local auth path).
 
 | Bug | Title | Local fix | Upstream |
 |-----|-------|-----------|----------|
@@ -33,8 +35,12 @@ documented as NOT-FILED; the web process token remains the only local auth path)
 | [012](bugs/012-route-classifier-three-sources/README.md) | fix 009's classifier reports real models as nonexistent under a pinned catalog | APPLIED to bundle 0.1.5-rc.2 (three-source classification: configured / catalog / allowlist, via `llm.listCatalogModels`) | NOT-FILED |
 | [013](bugs/013-fork-seed-announcement/README.md) | fix 008's cold-fork announcement is not observable (no count, no notice) | APPLIED to bundle 0.1.5-rc.2 (numeric `inheritedEventCount` on the descriptor + both-direction host log + child runtime-context line) | NOT-FILED |
 | [014](bugs/014-workflow-run-record-error/README.md) | workflow run records drop the child's spawn error and requested route | APPLIED to bundle 0.1.5-rc.2 (seam `diagnostic` + `error`/`requestedProvider`/`requestedModel` on `tool-workflow/agent-start`/`agent-end`) | NOT-FILED |
+| [014b](bugs/014b-workflow-agent-null-provenance/README.md) | `workflow` `agent()` still returns a bare `null` on failure | APPLIED to bundle 0.1.5-rc.2 (run-record lookup documented in the `agent()` bullet of the workflow tool description) | NOT-FILED |
+| [017](bugs/017-stop-time-in-termination-notice/README.md) | termination notices carry no `stopTime` | APPLIED to bundle 0.1.5-rc.2 (`stopTime` + `lastActivityTime` on the notice source, notice text, `subagent/end`, and types; live: stop 23 ms after last activity, envelope 22.7 s later) | NOT-FILED |
 | [018](bugs/018-child-layer-identity/README.md) | a child layer keeps the lead's system prompt while its tools are filtered | APPLIED to bundle 0.1.5-rc.2 (leading `subagent:layer` banner naming parent + removed tools; one-shot descriptors declare `toolFilter` — also covers 015's descriptor half) | NOT-FILED |
 | [019](bugs/019-child-write-scope/README.md) | no per-child write scope: workers can modify files they do not own | APPLIED to bundle 0.1.5-rc.2 (per-row `readOnly: true`: path-aware guard on `edit`/`write`/`present` + read-only sandbox for shell mutations, descriptor-durable) | NOT-FILED |
+| [021](bugs/021-read-only-no-temp-dir/README.md) | read-only lanes have no writable temporary directory (pytest dies before collecting) | APPLIED to bundle 0.1.5-rc.2 (`tempWriteRoots()` seam + bwrap private `--tmpfs /tmp` in every confined mode + Landlock/Seatbelt temp grants; live: bare pinned pytest `3 passed` on a `readOnly: true` lane, workspace still refused) | NOT-FILED |
+| [022](bugs/022-agent-preset-mount-path/README.md) | `agent-preset/selected` cannot say how the preset was mounted (direct vs picker switch) | APPLIED to bundle 0.1.5-rc.2 (one event writer records `mountPath: direct|switch` + `rowMount: mounted`; live on both paths via a headless overlay) | NOT-FILED |
 
 ## Legend
 

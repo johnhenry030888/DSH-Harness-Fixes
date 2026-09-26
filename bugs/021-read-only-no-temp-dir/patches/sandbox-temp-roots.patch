@@ -1,0 +1,66 @@
+--- pristine/sandbox/lib/index.js	2026-09-26 11:19:17.662968950 +0200
++++ installed/sandbox/lib/index.js	2026-09-26 11:19:47.146822399 +0200
+@@ -120,9 +120,12 @@
+ * (`@deepseek-ai/dsh-sandbox-local`) and the in-process filesystem fence
+ * (`@deepseek-ai/dsh-fs-sandbox`) both derive their allow-list here, so "the
+ * write tool cannot write /tmp but bash can" asymmetries cannot arise between
+-* them. The bwrap and Landlock dialects keep their own grant spellings (an
+-* ephemeral `/tmp` mount, launcher-owned flags) — the honest per-runner
+-* differences recorded in the sandbox RFC — with parity pinned by test.
++* them. The same module owns {@link tempWriteRoots} — the platform temp areas
++* EVERY confined mode may write (including `read-only`, because a process
++* cannot run without a scratch dir) — which the bwrap and Landlock dialects
++* implement with their own grant spellings (an ephemeral `/tmp` mount,
++* launcher-owned flags) — the honest per-runner differences recorded in the
++* sandbox RFC — with parity pinned by test.
+ *
+ * @module dsh-sandbox/roots
+ */
+@@ -144,11 +147,27 @@
+ 	}
+ }
+ /**
++* The platform temp areas every CONFINED execution may write — including
++* `read-only`: a process cannot run without a writable scratch dir (Python's
++* `tempfile`, `mkstemp`, pytest's own capture machinery all construct one
++* before any test runs), and an ephemeral temp area is not user data. The
++* bwrap dialect expresses this as a private tmpfs mount; the allow-list
++* dialects (Landlock, Seatbelt) grant exactly these canonical roots, so a
++* read-only lane keeps a working temp dir while every workspace path stays
++* unwritable (the fs fence still refuses `read-only` outright, independent of
++* any root).
++* @returns the canonical, deduplicated temp roots.
++*/
++function tempWriteRoots() {
++	return [...new Set(["/tmp", tmpdir()].map(canonicalPath))];
++}
++/**
+ * The roots one confined execution may WRITE under — the mode's meaning as a
+-* canonical, deduplicated allow-list. `read-only` allows nothing;
+-* `workspace-write` allows the policy's workspace root, the host `/tmp`, and
+-* the per-user platform temp dir (`os.tmpdir()` — the real temp area for
+-* mkstemp-family tools; omitting it would deny what the mode promises).
++* canonical, deduplicated allow-list. `read-only` allows no workspace write;
++* `workspace-write` allows the policy's workspace root plus
++* {@link tempWriteRoots} (the host `/tmp` and the per-user platform temp dir
++* — the real temp area for mkstemp-family tools; omitting it would deny what
++* the mode promises).
+ * @param policy - the file-effect policy to derive the allow-list from.
+ * @returns the canonical writable roots; empty exactly under `read-only`.
+ */
+@@ -156,8 +175,7 @@
+ 	if (policy.mode !== "workspace-write") return [];
+ 	return [...new Set([
+ 		policy.workspaceRoot,
+-		"/tmp",
+-		tmpdir()
++		...tempWriteRoots()
+ 	].map(canonicalPath))];
+ }
+ //#endregion
+@@ -199,4 +217,4 @@
+ 	}
+ };
+ //#endregion
+-export { ESCALATION_TARGETS, SANDBOX_UNAVAILABLE, SandboxProvider, SandboxProvider as default, SandboxUnavailableError, WIDER_MODES, approveEscalation, canonicalPath, escalationHintMarker, sandboxDenialMarker, validateEscalationArgs, writableRoots };
++export { ESCALATION_TARGETS, SANDBOX_UNAVAILABLE, SandboxProvider, SandboxProvider as default, SandboxUnavailableError, WIDER_MODES, approveEscalation, canonicalPath, escalationHintMarker, sandboxDenialMarker, tempWriteRoots, validateEscalationArgs, writableRoots };

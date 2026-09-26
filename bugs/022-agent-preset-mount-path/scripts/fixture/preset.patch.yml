@@ -1,0 +1,9 @@
+- insert:
+    - id: subagent-model-selection-settings-p22
+      name: '@deepseek-ai/dsh-tool-subagent/model-selection-settings'
+    - id: agent-presets-p22
+      name: '@deepseek-ai/dsh-agent-presets'
+      config:
+        default: p22-tmp
+    - id: probe-mount-p22
+      name: file:///tmp/opencode/p22-live/probe.js

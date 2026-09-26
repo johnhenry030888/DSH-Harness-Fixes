@@ -1,0 +1,25 @@
+--- pristine/agent-presets/lib/types/session.d.ts	2026-09-26 11:37:40.517774911 +0200
++++ installed/agent-presets/lib/types/session.d.ts	2026-09-26 11:37:40.521589134 +0200
+@@ -17,13 +17,18 @@
+ declare module '@deepseek-ai/dsh-session/types' {
+     interface SessionEventMap {
+         /**
+-         * The session's agent preset was chosen after creation, while the session
+-         * was still blank. Log-only: it records the composition later turns ran
+-         * under, so a resumed or forked session rebuilds the same one instead of
+-         * the header's creation-time value.
++         * A preset mounted onto this session: appended when a preset composes the
++         * agent at creation (`mountPath: 'direct'`, `rowMount: 'mounted'`) and when
++         * a blank session is moved onto another preset (`mountPath: 'switch'`).
++         * Log-only: it records the composition later turns ran under, so a resumed
++         * or forked session rebuilds the same one instead of the header's
++         * creation-time value; the path fields are the mount provenance a partial
++         * composition (a row that failed to register) cannot otherwise supply.
+          */
+         'agent-preset/selected': {
+             agentPreset: string;
++            mountPath: 'direct' | 'switch';
++            rowMount?: 'mounted';
+         };
+     }
+ }

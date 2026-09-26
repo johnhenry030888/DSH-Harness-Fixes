@@ -1,0 +1,21 @@
+--- pristine/subagent/lib/types/types.d.ts	2026-09-26 11:27:06.882394643 +0200
++++ installed/subagent/lib/types/types.d.ts	2026-09-26 11:27:06.863415915 +0200
+@@ -102,6 +102,18 @@
+     /** The terminal stop reason. */
+     readonly stopReason: SubagentResult['stopReason'];
+     /**
++     * Epoch milliseconds at which the run was recorded as stopped/settled.
++     * Present on continuable Activation settlements (and teardown-failure
++     * fallbacks); absent when a producer cannot date the stop.
++     */
++    readonly stopTime?: number;
++    /**
++     * Epoch milliseconds of the child's own last recorded session activity in
++     * the settling epoch, when the epoch logged any event. {@link stopTime} is
++     * the manager's stop record; this is the child's last write.
++     */
++    readonly lastActivityTime?: number;
++    /**
+      * The child's final assistant output, selected by the same rule as
+      * {@link SubagentResult.output}; absent on infrastructure rejection or when
+      * the child produced none.

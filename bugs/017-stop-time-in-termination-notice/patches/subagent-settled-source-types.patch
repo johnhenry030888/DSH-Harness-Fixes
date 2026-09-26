@@ -1,0 +1,19 @@
+--- pristine/subagent/lib/types/continuation-messages.d.ts	2026-09-26 11:27:06.886342588 +0200
++++ installed/subagent/lib/types/continuation-messages.d.ts	2026-09-26 11:27:06.866877845 +0200
+@@ -31,6 +31,16 @@
+     readonly summary: string;
+     /** Session id of the child that settled. */
+     readonly senderSessionId: SessionId;
++    /**
++     * Epoch milliseconds at which the child was recorded as stopped/settled —
++     * distinct from the notice event's own `time`, which dates delivery.
++     */
++    readonly stopTime?: number;
++    /**
++     * Epoch milliseconds of the child's own last recorded session activity in
++     * the settling epoch, when the epoch logged any event.
++     */
++    readonly lastActivityTime?: number;
+ }
+ declare module '@deepseek-ai/dsh-llm' {
+     interface MessageSourceMap {

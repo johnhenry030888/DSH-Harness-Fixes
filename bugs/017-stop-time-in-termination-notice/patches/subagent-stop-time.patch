@@ -1,0 +1,78 @@
+--- pristine/subagent/lib/index.js	2026-09-26 11:27:06.857265158 +0200
++++ installed/subagent/lib/index.js	2026-09-26 11:27:28.805241839 +0200
+@@ -332,7 +332,10 @@
+ 	};
+ 	let boundary = SessionLogOffset(0);
+ 	let captured = { stopReason: "completed" };
+-	const terminal = (failure) => failure === void 0 ? captured : { stopReason: "error" };
++	const terminal = (failure) => failure === void 0 ? captured : {
++		stopReason: "error",
++		stopTime: Date.now()
++	};
+ 	return {
+ 		start: (child) => {
+ 			boundary = child.session.seq;
+@@ -341,17 +344,22 @@
+ 		capture: (child) => {
+ 			const own = child.session.snapshotEvents(boundary);
+ 			const output = finalAssistantOutput(own);
++			const lastActivityTime = own.at(-1)?.time;
+ 			captured = {
+ 				stopReason: epochStopReason(own),
++				stopTime: Date.now(),
++				...lastActivityTime === void 0 ? {} : { lastActivityTime },
+ 				...output === void 0 ? {} : { output }
+ 			};
+ 		},
+ 		terminal,
+ 		settle: (failure) => {
+-			const { stopReason, output } = terminal(failure);
++			const { stopReason, output, stopTime, lastActivityTime } = terminal(failure);
+ 			emit("subagent/end", {
+ 				...identity,
+ 				stopReason,
++				...stopTime === void 0 ? {} : { stopTime },
++				...lastActivityTime === void 0 ? {} : { lastActivityTime },
+ 				...output === void 0 ? {} : { lastAssistantMessage: output }
+ 			}, parent);
+ 		}
+@@ -718,17 +726,27 @@
+ }
+ /**
+ * Build the runtime-owned settlement notice delivered to a child's parent.
++* The notice carries the stop moment as machine-readable `stopTime` (epoch
++* milliseconds) plus the child's own last recorded activity
++* (`lastActivityTime`) whenever that epoch logged one, so a parent never has
++* to infer when the child stopped from the notice envelope's delivery time.
+ * @param childId - durable child session id named in the notice.
+ * @param terminal - recorded terminal state for the settled Activation.
+ * @returns the durable user-message representation delivered to the parent.
+ */
+ function createSettlementMessage(childId, terminal) {
+ 	const summary = settlementSummary(childId, terminal.stopReason);
++	const stopTime = Number.isFinite(terminal.stopTime) ? terminal.stopTime : void 0;
++	const lastActivityTime = Number.isFinite(terminal.lastActivityTime) ? terminal.lastActivityTime : void 0;
++	const timing = stopTime === void 0 ? [] : [{
++		type: "text",
++		text: lastActivityTime === void 0 ? `Stop time: ${new Date(stopTime).toISOString()}.` : `Stop time: ${new Date(stopTime).toISOString()}; the child's last recorded activity: ${new Date(lastActivityTime).toISOString()}.`
++	}];
+ 	return createUserMessage({
+ 		content: [{
+ 			type: "text",
+ 			text: summary
+-		}, ...terminal.output === void 0 ? [{
++		}, ...timing, ...terminal.output === void 0 ? [{
+ 			type: "text",
+ 			text: "It left no closing message."
+ 		}] : [{
+@@ -739,7 +757,9 @@
+ 			kind: "subagent-settled",
+ 			form: "notice",
+ 			summary: boundContextSummary(summary),
+-			senderSessionId: childId
++			senderSessionId: childId,
++			...stopTime === void 0 ? {} : { stopTime },
++			...lastActivityTime === void 0 ? {} : { lastActivityTime }
+ 		}
+ 	});
+ }

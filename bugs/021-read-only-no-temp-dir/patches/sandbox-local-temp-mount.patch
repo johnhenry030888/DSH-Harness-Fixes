@@ -1,0 +1,74 @@
+--- pristine/sandbox-local/lib/index.js	2026-09-26 11:19:17.665045638 +0200
++++ installed/sandbox-local/lib/index.js	2026-09-26 11:19:47.149250953 +0200
+@@ -5,7 +5,7 @@
+ import { fileURLToPath } from "node:url";
+ import { LAUNCHER_BIN, LAUNCHER_FAILURE_EXIT, grantArgs, launcherPath, probe } from "@deepseek-ai/node-addon-system/landlock-run";
+ import z from "@deepseek-ai/schemastery";
+-import { SandboxProvider, SandboxUnavailableError, writableRoots } from "@deepseek-ai/dsh-sandbox";
++import { SandboxProvider, SandboxUnavailableError, tempWriteRoots, writableRoots } from "@deepseek-ai/dsh-sandbox";
+ import { AclWriteGrant, assertTempRootOutsideWorkspace, tempWriteSid, workspaceWriteSid } from "@deepseek-ai/dsh-sandbox-windows-acl";
+ import { assertNever } from "@deepseek-ai/dsh-util-values";
+ //#region lib/types/profiles.js
+@@ -15,6 +15,15 @@
+ * @module @deepseek-ai/dsh-sandbox-local/profiles
+ */
+ /**
++* The mount point of the one writable location a confined run gets outside
++* its workspace: an ephemeral, private tmpfs. Every confined mode (including
++* `read-only`) mounts it — a process cannot run without a writable temp dir
++* (Python's `tempfile`, `mkstemp`, pytest's capture machinery), and the
++* tmpfs is discarded with the mount namespace, so "read-only" keeps meaning
++* "no persistent file may be modified".
++*/
++const CONFINED_TEMP_DIR = "/tmp";
++/**
+ * Build the bwrap profile arguments for one file-effect policy.
+ * @param policy - file-effect policy to express as bwrap mounts.
+ * @returns profile arguments before the trailing separator and command argv.
+@@ -26,13 +35,14 @@
+ 		"/",
+ 		"--dev",
+ 		"/dev",
++		"--tmpfs",
++		CONFINED_TEMP_DIR,
+ 		"--unshare-pid",
+ 		"--proc",
+ 		"/proc",
+ 		"--die-with-parent"
+ 	];
+ 	if (policy.mode === "workspace-write") {
+-		args.push("--tmpfs", "/tmp");
+ 		args.push("--bind", policy.workspaceRoot, policy.workspaceRoot);
+ 	}
+ 	return args;
+@@ -43,8 +53,8 @@
+ * @returns launcher grant arguments before the trailing separator and command argv.
+ */
+ function landlockProfileArgs(policy) {
+-	const readWrite = ["/dev/null"];
+-	if (policy.mode === "workspace-write") readWrite.push("/tmp", policy.workspaceRoot);
++	const readWrite = ["/dev/null", ...tempWriteRoots()];
++	if (policy.mode === "workspace-write") readWrite.push(policy.workspaceRoot);
+ 	return grantArgs({
+ 		readOnly: ["/"],
+ 		readWrite
+@@ -58,7 +68,9 @@
+ * Build the sandbox-exec arguments and SBPL profile for one policy. The
+ * writable roots come from the shared {@link writableRoots} helper (canonical,
+ * deduplicated) so the Seatbelt grant and the in-process fs fence
+-* (`@deepseek-ai/dsh-fs-sandbox`) can never drift apart.
++* (`@deepseek-ai/dsh-fs-sandbox`) can never drift apart; under `read-only`
++* the profile grants only {@link tempWriteRoots} — a read-only run keeps a
++* writable temp dir while every workspace path stays unwritable.
+ * @param policy - file-effect policy to express as an SBPL profile.
+ * @returns sandbox-exec arguments before the trailing separator and command argv.
+ */
+@@ -69,7 +81,7 @@
+ 		"(deny file-write*)",
+ 		`(allow file-write* (literal ${sbplString("/dev/null")}))`
+ 	];
+-	const roots = writableRoots(policy);
++	const roots = policy.mode === "read-only" ? tempWriteRoots() : writableRoots(policy);
+ 	if (roots.length > 0) forms.push(`(allow file-write* ${roots.map((root) => `(subpath ${sbplString(root)})`).join(" ")})`);
+ 	return ["-p", forms.join(" ")];
+ }
