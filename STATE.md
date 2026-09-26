@@ -78,8 +78,8 @@
   - [x] `./scripts/check-all.sh` + `./scripts/verify.sh` + `audit-secrets.sh`
   - [x] UI gates — N/A (harness bundle patches; no project UI files)
   - [x] visual baseline — N/A
-  - [ ] checkpoint/commit (`git`) — pending this turn's commit
-  - [ ] push to origin — pending
+  - [x] checkpoint/commit (`git`) — `82460ba` (bugs 011-014/018/019 fixes + docs)
+  - [x] push to origin — `https://github.com/johnhenry030888/DSH-Harness-Fixes` accepted `7f10bbc..82460ba` on `main`; pre-push hooks passed (node/pytest/cargo/go/secrets all green)
   - [x] update this file (every turn ends by updating it)
 - Open items:
   - a probe `dsh web` (ours) was started for live checks; stopped at the end of

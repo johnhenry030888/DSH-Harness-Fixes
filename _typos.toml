@@ -6,3 +6,8 @@
 # Explicit paths need the hook to pass --force-exclude (config covers walks only).
 extend-exclude = ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp", "*.ico",
                   "*.bmp", "*.tif", "*.tiff"]
+
+[default]
+# Commit hashes in the evidence docs (e.g. `82460ba`) trip the tokenizer
+# (`ba` -> `by`/`be`); hashes are identifiers, not prose.
+extend-ignore-re = ["\\b[0-9a-f]{7,40}\\b"]
