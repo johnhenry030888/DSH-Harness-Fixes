@@ -8,7 +8,30 @@
   016, 020, 026-030 — landed from drill v12's findings plus the orchestrator
   efficiency pass). Drill v13 then closed fix 011: **ten clean
   `standard → orchestrator` switch samples**, no 176-tool mount in any.
-- What changed this turn (2026-09-26, drill v15 follow-up):
+- What changed this turn (2026-09-26, drill v16 follow-up):
+  - **drill v16: end-to-end PASS** (report + evidence on the Desktop; 37 min 15 s,
+    942 467 tokens, 14 children, 141 model calls). The full lane set ran in the
+    prescribed order with no rule violated; the deliverable is real
+    (`wordstats.py` + `test_wordstats.py`, `47 passed` when the lead ran it) and a
+    genuine RED falsification was captured twice by independent lanes. Its own
+    honest caveat: the suite is green **and** two single-line mutations survive it
+    (case-only tie ordering, the untested default `-n`).
+  - **Persona corrected for the three legibility gaps it exposed** (backup
+    `agent.cordis.yml.pre-v17-20260926`, four sentences): only `subagent_review`
+    and `subagent_vision` are `readOnly: true` (so a write-capable lane's probe is
+    admitted by design — reading that as a guard failure cost v16 ~28 s and ~58 k tokens);
+    `agent()` **inherits the lead's effort** and the run record hides it (v16's
+    stage-1 siblings ran at unmatched effort: 798 s vs 378 s, 36 % of the run);
+    a build task now carries a **discrimination checklist** (one adversarial input
+    per contract clause); and the review lane must **re-run** claimed mutations.
+  - **Drill v17 written** (`~/Desktop/orchestrator-drill-prompt-v17.md`): the
+    efficiency re-run — same end-to-end task, but with the three doctrine fixes
+    exercised and the telemetry diffed against v16's baseline; its explicit bar is
+    that v16's two surviving mutations go RED.
+  - Three open items recorded in the ledger (see the STATUS verification note):
+    the `list_agents` declared-tree render, the steer delivery/boundary stamp, and
+    the resolved stage effort in the workflow run record.
+- Earlier this turn (2026-09-26, drill v15 follow-up):
   - **drill v15: 31/31 PASS, 0 FAIL, 0 NOT RUN** (report + evidence on the
     Desktop; drill root `~/Desktop/orchestrator-drill-v15-20260926-1923`). Every
     local fix in the project is now observed live: v15 itself exercised 001

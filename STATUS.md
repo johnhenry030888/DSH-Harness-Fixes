@@ -24,6 +24,21 @@ Verification note (2026-09-26, drill v13): fix 011 is **CLOSED** — ten clean
 (`~/Desktop/orchestrator-switch-path-log.md`), every one corroborated at
 transcript level, no 176-tool mount.
 
+Verification note (2026-09-26, drill v16): the **end-to-end closure run** PASSED —
+partition → two different-family builders in parallel → verify with a genuine RED
+falsification in a private copy (reproduced independently by a second lane) →
+non-authoring review → lead re-hash + lead-run suite (47/47) → merge, with the
+whole 178/161 mount arithmetic and the owner-settled guard holding (the refusal
+named the **declared target path**). Six frictions were logged, **no new harness
+bug**, and the run's honest caveat is a doctrine lesson rather than a defect: the
+suite was green with **two single-line mutations surviving it**. Two costs came
+from missing legibility, not from broken behaviour — the ledger now carries three
+open items: (a) `list_agents` renders a row's tree from the child's session cwd,
+not its declared target; (b) no steer delivery/boundary timestamp is surfaced;
+(c) the workflow run record does not show the resolved stage effort, so
+`agent()`'s inherited effort is invisible (v16 measured a stage child silently at
+the lead's `max` beside a `null` sibling, 798 s vs 378 s).
+
 Verification note (2026-09-26, drill v15): **31 of 31 fixes PASS live, 0 FAIL,
 0 NOT RUN** — every local fix in this project has now been observed in a real
 session (16 during v15 itself: 001, 002, 004, 010, 016, 016b, 018, 019, 020,
