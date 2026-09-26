@@ -25,6 +25,22 @@ Verification note (2026-09-26, drill v13): fix 011 is **CLOSED** — ten clean
 corroborated at
 transcript level, no 176-tool mount.
 
+Verification note (2026-09-26, drill v21, closing run): **12 of 14 bars MET — and
+the single miss is now unambiguous.** Met: 16/16 mutants killed with **0
+falsifiable survivors** (the reviewer independently reproduced `killed=16
+survived=0` and the claimed 8 weak tests), the clause-aware spec gate ran before
+the builders (`clauses=7 rows=16 boundary_cases=29 inconsistent=0`), the bounded
+returns worked (**≈4,306 tokens across nine lane returns**, largest ≈702 — v20's
+270-line diff did not recur), the latency-matched pinned fan-out took the barrier
+from 349.8 s to **44.5 s** and the merge to **50.7 s / 4 896 tokens**, preflight
+**10.3 s**, total wall **1 483 s**, 0 duplicate measurement lanes, 0 false
+failures, artifact dir clean. **MISSED: lead input share 33.12 %** (bar 17 %) —
+with lane returns capped, the dominant term is the lead's own **38 model calls**
+re-sending ~3.1 k tokens of context each (118,426 tokens on the lead alone). The
+run's own arithmetic puts ~15-16 lead calls at ≈16 %. The 027 count observation is
+**closed with its location**: 9/9 children carry "This layer advertises 161 tools"
+in the injected `user/message` (seq 11), not in `subagent/descriptor`.
+
 Verification note (2026-09-26, drill v20, closure run): **every correctness and
 evidence bar MET; two cost bars missed, both self-inflicted by the lead's own
 return schemas.** Met: spec gate ran before the builders saw it

@@ -8,6 +8,37 @@
   016, 020, 026-030 — landed from drill v12's findings plus the orchestrator
   efficiency pass). Drill v13 then closed fix 011: **ten clean
   `standard → orchestrator` switch samples**, no 176-tool mount in any.
+- What changed this turn (2026-09-26, drill v21 follow-up):
+  - **drill v21: 12 of 14 bars met; the last miss is the lead's turn count.**
+    Correctness/evidence all green (16/16 mutants killed, 0 falsifiable survivors
+    reproduced independently by the review lane, clause-aware gate before the
+    builders, no ordering violation, no hash moved, clean artifact dir). Cost
+    bars that v20 missed are now green: returns **≈4,306 tokens across nine
+    lanes**, barrier **44.5 s** (v20 349.8), merge **50.7 s / 4 896 tokens**,
+    preflight **10.3 s**, total wall **1 483 s**. The one miss: lead input share
+    **33.12 %** (bar 17 %) — with returns capped, the driver is the lead's own
+    **38 model calls** at ~3.1 k tokens of re-sent context each; ~15-16 calls
+    would land ≈16 %.
+  - **Persona corrected (backup `agent.cordis.yml.pre-v22-20260926`, five
+    sentences):** your own **turn count is the budget** (one long wait with an
+    explicit `timeout_ms` per wave, at most one status call per wave, never poll a
+    lane that owns a progress artifact — read it); the return cap is a **hard line
+    budget** with overflow pushed into the artifact file, and a long lane's first
+    action is a progress write **inside** its loop (read-only lanes are exempt and
+    return a partial table from one invocation); a **candidate pair must span
+    families** (v21 merged two deepseek lanes that agreed on all 14 items, so the
+    conflict branch was never exercised); the only legal cwd for a lane's pytest is
+    its **private copy**; pass `timeout_ms` on long waits; hash/line-count an
+    artifact and read its head before calling it rewritten or a lane defective; and
+    the 027 count lives in the child's injected `user/message`, not the descriptor.
+  - **Open harness items stay six and are all non-blocking** — the pinned-rows rule
+    replaced the workflow path, so `agent()`'s missing `effort` option costs
+    nothing today; the guard's declared-scope harvest (v21 reproduced the
+    common-ancestor collapse to the drill root) is the most user-visible of them.
+  - **Drill v22 written** (`~/Desktop/orchestrator-drill-prompt-v22.md`): the
+    closure run with a **lead-call budget** (≤ ~16 lead calls / ≤ 17 % share) as
+    the primary bar, plus the progress-artifact, family-spread, private-copy and
+    timeout rules.
 - What changed this turn (2026-09-26, drill v20 follow-up):
   - **drill v20: all correctness/evidence bars met, two cost bars missed — and the
     misses are the lead's own doing.** Met: clause/row gate before the builders,
