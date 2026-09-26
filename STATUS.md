@@ -25,6 +25,22 @@ Verification note (2026-09-26, drill v13): fix 011 is **CLOSED** — ten clean
 corroborated at
 transcript level, no 176-tool mount.
 
+Verification note (2026-09-27, drill v22, lead-call budget): **the headline
+objective is MET — 16 lead model calls (v21: 38) and a lead input share of 11.98 %
+(v21: 33.12 %) — with every correctness/evidence bar green**: 25/25 suite run by
+the lead, 18/18 mutants RED with 0 falsifiable survivors (the review lane
+independently reproduced 6/6 sampled mutations), clause+row-aware spec gate before
+freezing (18 rows, 9 boundary rows, 7/7 clause probes), no ordering violation, no
+hash moved, clean artifact dir, and **all 10 lane returns within their caps**
+(≈147 lines ≈2.3 k tokens total; the only consensus cost left in the lead's
+context is its own 15.6 k-token spec-design turn). Cost bars: barrier 189.8 s and
+merge 95.2 s / 8,012 tokens both MET. Missed: total wall ≈1,880 s (bar 1,500) —
+one lane overran its 240 s box to ~656 s and the measurement lane was gated on
+that lane's sentinel; the candidate-disagreement bar (0 disagreements: two
+families still agreed 18/18 on a row-precise spec); and the guard/steer probes
+were NOT EXERCISED because the run spent its call budget on the budget bars
+(disclosed, not hidden).
+
 Verification note (2026-09-26, drill v21, closing run): **12 of 14 bars MET — and
 the single miss is now unambiguous.** Met: 16/16 mutants killed with **0
 falsifiable survivors** (the reviewer independently reproduced `killed=16

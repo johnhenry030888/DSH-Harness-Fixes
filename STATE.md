@@ -8,6 +8,38 @@
   016, 020, 026-030 — landed from drill v12's findings plus the orchestrator
   efficiency pass). Drill v13 then closed fix 011: **ten clean
   `standard → orchestrator` switch samples**, no 176-tool mount in any.
+- What changed this turn (2026-09-27, drill v22 follow-up):
+  - **drill v22: the lead-call budget works.** 16 lead model calls (v21: 38) and a
+    lead input share of **11.98 %** (v21: 33.12 %), with every correctness and
+    evidence bar green: 25/25 suite, 18/18 mutants RED, 0 falsifiable survivors
+    (review reproduced 6/6), clause+row-aware gate (18 rows / 9 boundary / 7/7
+    clause probes), no ordering violation, no hash moved, clean dir, and all 10
+    lane returns inside their caps (≈2.3 k tokens total). Barrier 189.8 s, merge
+    95.2 s / 8,012 tokens. Missed: total wall ≈1,880 s (bar 1,500) because one lane
+    overran its 240 s box to ~656 s and the measurement lane was **gated on that
+    lane's sentinel**; the disagreement bar (0 — families agreed 18/18 on a
+    row-precise spec); and the guard/steer probes were not exercised (the call
+    budget went to the budget bars, disclosed).
+  - **Persona corrected (backup `agent.cordis.yml.pre-v23-20260927`, four
+    sentences):** a lane box is a **hard self-abort** that returns partial results,
+    and a consumer must never be gated on a producer's sentinel (snapshot, mark the
+    rest un-comparable) — that coupling alone cost v22 its wall-clock bar; a gate
+    that parses code must parse it **structurally** (`ast.parse`+`literal_eval`,
+    never comma-splitting — v22's checker bug cost 2 of its ~16 calls); row oracles
+    must **discriminate the defect class they pin** (a tie-break test whose input is
+    already tie-ascending is decorative; 6 tests passed against an all-empty
+    implementation); family spread is **necessary, not sufficient** for
+    disagreement, so underdetermined items must be engineered into the derivation
+    set with `disagreements_expected` recorded; and every metric is reported **with
+    its basis** (cache-inclusive vs uncached share; bash-observed vs transcript
+    preflight seconds).
+  - **Open harness items stay six**; all are non-blocking (no workflow path is used
+    any more) and the guard's declared-scope collapse remains the most
+    user-visible.
+  - **Drill v23 written** (`~/Desktop/orchestrator-drill-prompt-v23.md`): the
+    wall-clock drill — hard self-abort boxes, no consumer gated on a producer, the
+    AST-parsing gate, engineered disagreement, both measurement bases, and the
+    guard/steer probes folded into the delegated sweep.
 - What changed this turn (2026-09-26, drill v21 follow-up):
   - **drill v21: 12 of 14 bars met; the last miss is the lead's turn count.**
     Correctness/evidence all green (16/16 mutants killed, 0 falsifiable survivors
