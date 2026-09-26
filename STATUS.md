@@ -24,6 +24,22 @@ Verification note (2026-09-26, drill v13): fix 011 is **CLOSED** — ten clean
 (`~/Desktop/orchestrator-switch-path-log.md`), every one corroborated at
 transcript level, no 176-tool mount.
 
+Verification note (2026-09-26, drill v17, efficiency re-run): **PASS with one
+negative result.** Doctrine fix 1 paid (the guard was dispatched through a
+read-only row, refused naming the declared paths, then admitted — no un-fireable
+probes, ~86 s and ~58 k tokens saved) and doctrine fix 3 paid fully (**11/11
+mutations RED, 0 survivors**, both v16 survivors killed; the blind-authored suite
+also caught a real contract defect on its first run). **Doctrine fix 2 did not
+work as written:** the sibling spread worsened (2.11x -> 2.451x) and the workflow
+sub-task ended 4.7 s cheaper out of 852 s, because halving the barrier (798.6 ->
+451.9 s) was given back by a merge stage that inherited the lead's `max` effort
+(395.3 s, 55 702 output tokens, 24% of the run). The cause is now recorded as the
+top open item: resolved effort is absent from `tool-workflow/agent-start` and at
+least one route emits **no** `reasoningEffort` key at all, so "effort-matched" is
+unfalsifiable from the record. The doctrine now says to right-size the merge
+deliberately, to verify effort per child afterwards, and to keep the lead's own
+verification delegated (v17's lead input share rose 15.6% -> 24.0%).
+
 Verification note (2026-09-26, drill v16): the **end-to-end closure run** PASSED —
 partition → two different-family builders in parallel → verify with a genuine RED
 falsification in a private copy (reproduced independently by a second lane) →

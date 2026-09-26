@@ -8,7 +8,42 @@
   016, 020, 026-030 — landed from drill v12's findings plus the orchestrator
   efficiency pass). Drill v13 then closed fix 011: **ten clean
   `standard → orchestrator` switch samples**, no 176-tool mount in any.
-- What changed this turn (2026-09-26, drill v16 follow-up):
+- What changed this turn (2026-09-26, drill v17 follow-up):
+  - **drill v17 (efficiency re-run): PASS, with one honest negative result.**
+    1 677 s / 853 109 tokens / 10 children / 171 calls; suite 47 passed with
+    **11/11 mutations RED (0 survivors)** including both that v16's suite missed;
+    the owner-settled guard was correctly dispatched through a read-only row and
+    the steer cost 4.98 s (1.46 s to boundary, 3.52 s to reply) against a lane
+    whose own steps cost 3.3-6.0 s. The negative: doctrine fix 2 (effort-match the
+    workflow siblings) did not achieve its aim — the spread worsened to 2.451x and
+    the workflow sub-task finished 4.7 s cheaper out of 852 s, because the barrier
+    saving was exactly offset by a terminal merge that inherited the lead's `max`
+    (395.3 s, 55 702 output tokens).
+  - **Persona corrected for the negative result and the new frictions** (backup
+    `agent.cordis.yml.pre-v18-20260926`, five sentences): right-size the terminal
+    merge deliberately (v16's cheap 53.6 s merge was correct, v17's heavy 395 s
+    merge was the error); every `agent()` stage inherits your effort and the
+    record hides it, so verify effort per child afterwards and route
+    effort-critical stages through the pinned `subagent*` rows; keep your own
+    verification delegated (lead input share regression 15.6% -> 24.0%); a
+    read-only lane's `/tmp` is wiped between calls, so a mutation reproduction
+    must be one self-contained invocation; and `subagent/descriptor` — not a
+    "quote your system prompt" probe — is the authoritative child identity (4/4
+    children quoted its filter sentence correctly; 1 of 4 faked the prompt line).
+    A workflow-spawned child advertises **162** tools vs a direct child's 161 —
+    recorded so it is not misread as a lost filter.
+  - **Open items now four** (top first): (1) resolved effort + provenance on the
+    workflow agent events, and an explicit effort-or-default marker from every
+    adapter (v17 friction #1, high); (2) `list_agents` should render the
+    delegation's declared target, which the ordering guard already computes (v16
+    F2 / v17 #2); (3) surface the steer delivery/boundary stamps — the transcript
+    already carries `agent/inbox/spliced` with a timestamp (v17 #3); (4) one
+    persistent scratch dir for read-only lanes (v17 #4, low).
+  - **Drill v18 written** (`~/Desktop/orchestrator-drill-prompt-v18.md`): the
+    bounded efficiency run — same end-to-end shape with a right-sized merge, and
+    explicit bars (workflow sub-task ≤ ~500 s vs 852/848 s, lead input share
+    ≤ ~17%, 0 surviving mutations, all regressions green).
+- Earlier this turn (2026-09-26, drill v16 follow-up):
   - **drill v16: end-to-end PASS** (report + evidence on the Desktop; 37 min 15 s,
     942 467 tokens, 14 children, 141 model calls). The full lane set ran in the
     prescribed order with no rule violated; the deliverable is real
