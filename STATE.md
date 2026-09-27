@@ -102,6 +102,10 @@
   - **Deployment reminder:** the user must restart `dsh web` to load the
     patched bundle; the headless `pong` run already proves the patched bundle
     parses and answers.
+  - **Commit/push:** `c045992` (27 files, +1586/-19; pre-commit
+    shfmt/shellcheck/typos green, pre-push pytest `7 passed`, cargo/go/node
+    skips, secrets OK) pushed `a81f163..c045992` to `origin/main`
+    (`https://github.com/johnhenry030888/DSH-Harness-Fixes`).
 - What changed this turn (2026-09-27, batch-6 independent verification):
   - **Re-verified batch 6 from the outside** (not from its own report): `check-all.sh` exit 0 with **73
     `PRESENT` lines = 37 fixes**; `verify.sh` OK; `audit-secrets.sh` OK; headless `pong` OK on the patched
