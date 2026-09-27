@@ -22,6 +22,23 @@
   **37 fixes present**, requires per-fix patch round-trips, behavioural or live proofs, `verify.sh`/`audit-secrets.sh`/
   hooks/headless-`pong` green, STATUS+STATE updates, commit+push, and a BLOCKED entry with the exact error for
   anything not landed (silent skipping is defined as a failed batch).
+- Batch-7 fixes prompt written (2026-09-27): `~/Desktop/opencode-harness-fixes-prompt-7.md` — a
+  mandatory, completion-gated opencode prompt for the **two remaining drill-opened items**, with every
+  seam verified against the installed bundle before writing:
+  **037 — `agent(prompt, {effort})`**: accept a pinned per-stage effort (the plumbing already exists from
+  035: the worker host's `resolveChildEffort()` returns `effortSource: "pinned"` as soon as
+  `agentOptions.reasoningEffort` is present, so the option only has to be let through
+  `DEFERRED_AGENT_OPTIONS`/`readAgentOptions` in `worker.cjs` and forwarded in the host's `startAgent`
+  `agentOptions`), record `resolvedEffort`/`effortSource` (plus the requested value), keep
+  `isolation`/`agentType` deferred, and fail loudly on an unadvertised effort; acceptance is a live
+  two-stage workflow with a pinned stage and a negative case.
+  **038 — one documented offline route list**: `dsh-local-session.mjs --routes` prints policy ∩ served
+  catalogue (`subagent-model-selection.allowedModels` = 8 ∩ `storages/llm-pi-ai/catalog/*.json` = 33 → 8)
+  with a `basis:` line, `--json`, and an honest `UNKNOWN` + non-zero exit when a source is missing, plus a
+  README section stating that the in-session `list_subagent_models()` is the authority, `/api/*` needs the
+  process-token cookie and `/v1/models` is not mounted (verified now: `/v1/models` → **404**,
+  `/api/routes` → **401**, `/api/providers` → **401**). No new RPC method, no auth change. Gate raised to
+  **39 fixes / 77 `PRESENT` lines**.
 - What changed this turn (2026-09-27, batch-6 independent verification):
   - **Re-verified batch 6 from the outside** (not from its own report): `check-all.sh` exit 0 with **73
     `PRESENT` lines = 37 fixes**; `verify.sh` OK; `audit-secrets.sh` OK; headless `pong` OK on the patched
