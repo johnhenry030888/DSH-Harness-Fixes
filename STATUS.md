@@ -77,6 +77,26 @@ routes with `basis {policy: settings.yaml#subagent-model-selection.allowedModels
 and with an empty `DSH_HOME` it prints `routes: null` plus the two named missing sources and exits **1**;
 the auth fence is unchanged (`/api/routes` 401, `/api/providers` 401, `/v1/models` 404).
 
+Verification note (2026-09-28, drill v27, first run on the 39-fix bundle): **the wall bar
+PASSED for the first time — 1 324 s** (pre-dispatch 156 s vs v26's 340 s), lead calls **16** (at budget).
+Accepted with pasted records: **031** (refused "declared no read scope … `scopeBasis: maximal`", then admitted
+after settlement), **032** (disjoint scope admitted / overlap refused naming the real pair / incidental `/tmp`
+mention no longer refuses), **036** (row shows `[writes in <declared path> (declared)]` with `checkedAt`),
+**038** (offline 8 routes with `basis`, empty home → exit 1), **033** on its notice, **034** on
+`deliveredAt → reply`, **037** on live behaviour (pinned `PINNED-OK`, unpinned `INHERITED-OK`, unadvertised
+effort rejected by name with the ladder). Also green: both gate axes (27/27 type-strict rows, and the gate
+caught a self-authored false-positive rule before dispatch), suite 17 passed lead-run, two independent sweeps
+executed (11 and 19 units), the conflict branch exercised (D2), and the accounting lane recounted `5/4/1`
+with `MISMATCH: NO` — the v26 count-fabrication mode did not recur. Open: **1 falsifiable survivor** (D13, a
+colon-less numeric string no row covers — one oracle hole, B12, was found and repaired mid-run), the share bar
+**unmeasured**, and 9 of 20 lanes produced no artifact. Two causes are the **drill brief's**, not the
+harness's, and are fixed in the doctrine: the brief never named the transcript path
+(`~/.dsh/sessions/--<cwd-slug>--/<child-id>/session.v3.jsonl.zstd`), which cost three record-level acceptance
+rows and the share measurement; and lanes asked to *author* a driver inside a 160–200 s box stalled, so the
+lead now authors the driver and the lane runs it. Two residual harness-side items are recorded for a possible
+batch 8: a declared `/tmp` read scope is classified as "no read scope" (v27 F2), and there is no supported
+record-read surface for drills beyond the transcript path (v27 F3).
+
 **All eight drill-opened harness items are now closed** (031–038). The only item from the v25/v26 lists that
 is deliberately *not* a fix is the read-only lane's wiped `/tmp`: it is the sandbox design (a read-only
 lane's scratch is per-invocation), now documented rather than patched.

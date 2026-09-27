@@ -23,7 +23,35 @@
   **37 fixes present**, requires per-fix patch round-trips, behavioural or live proofs, `verify.sh`/`audit-secrets.sh`/
   hooks/headless-`pong` green, STATUS+STATE updates, commit+push, and a BLOCKED entry with the exact error for
   anything not landed (silent skipping is defined as a failed batch).
-- What changed this turn (2026-09-27, batch-7 independent verification):
+- What changed this turn (2026-09-28, drill v27 — first run on the 39-fix bundle):
+  - **The wall bar passed for the first time: 1 324 s** (bar 1 500; pre-dispatch 156 s vs v26's 340 s) with
+    lead calls **16** (at budget). Fixes accepted with pasted records: **031** (`scopeBasis: maximal`
+    refusal then admission after settlement), **032** (disjoint admitted / overlap refused with the real pair
+    / incidental `/tmp` mention harmless), **036** (declared tree + `checkedAt` in the row), **038** (8
+    offline routes + `basis`, empty home → exit 1); **033** on the box-hit notice, **034** on
+    `deliveredAt → reply`, **037** on live pinned/unpinned/negative behaviour. Gate: both axes, 27/27
+    type-strict rows, and the gate caught a self-authored false-positive rule before dispatch. Two
+    independent sweeps executed (11 + 19 units), D2 conflict exercised, accounting recounted `5/4/1`
+    `MISMATCH: NO`.
+  - **Open:** 1 falsifiable survivor (D13, colon-less numeric string — B12's container-leaf hole was found
+    and repaired mid-run), the share bar **unmeasured**, 9 of 20 lanes produced no artifact.
+  - **Two failures were the drill brief's, and are now fixed in the doctrine (backup
+    `agent.cordis.yml.pre-v30-20260928`, five sentences):** the brief never named the transcript path
+    (`~/.dsh/sessions/--<cwd-slug>--/<child-id>/session.v3.jsonl.zstd`, `zstd -dc`, carrying
+    `request/header`/`subagent/box`/`subagent/steer`/`subagent/steer-boundary`/`tool-workflow/agent-start`)
+    — that cost three record-level acceptance rows and the share measurement; **the lead authors the driver
+    and the lane runs it** (lanes that had to invent one inside a 160–200 s box stalled; 9 of 20 lanes
+    produced nothing); a container needs **leaf-type** assertions (`3.0 == 3` hid a real mutation); a row
+    must make the **branch** fail, not merely reach the clause (D13); and a delegation prompt must name
+    **concrete file paths**, never the root alone (v27 F5: a root-only declaration collapsed the writer's
+    tree and blocked every read-only delegation under it).
+  - **Two residual harness items recorded for a possible batch 8:** a declared `/tmp` read scope is
+    classified as "no read scope" (F2), and drills have no supported record-read surface beyond the
+    transcript path (F3).
+  - **Drill v28 written** (`~/Desktop/orchestrator-drill-prompt-v28.md`): the closure run with the
+    transcript path in the brief, lead-authored drivers, leaf-type rows, branch-discriminating inputs,
+    concrete write scopes, and the same bars.
+- Earlier this turn (2026-09-27, batch-7 independent verification):
   - **Re-verified batch 7 from the outside**: `check-all.sh` exit 0 with **77 `PRESENT` lines = 39 fixes**;
     `verify.sh` OK; `audit-secrets.sh` OK; headless `pong` OK; both new `check.sh` green and both
     `reapply.sh` idempotent ("already present"). **037** live probe re-run: a pinned `effort: "low"` stage
