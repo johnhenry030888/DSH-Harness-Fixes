@@ -4,11 +4,12 @@
 
 - Objective: Batch project for DeepSeek Harness bug fixes
 - Stack: polyglot | Features: none
-- Phase: **all thirty-seven local fixes applied** to `dsh` 0.1.5-rc.2 (batch 5 —
+- Phase: **all thirty-nine local fixes applied** to `dsh` 0.1.5-rc.2 (batch 5 —
   016, 020, 026-030 — landed from drill v12's findings plus the orchestrator
   efficiency pass; **batch 6 — 031-036 — landed 2026-09-27** from the
-  v16/v17/v19/v21-v26 findings). Drill v13 then closed fix 011: **ten clean
-  `standard → orchestrator` switch samples**, no 176-tool mount in any.
+  v16/v17/v19/v21-v26 findings; **batch 7 — 037-038 — landed 2026-09-27**,
+  the two remaining drill-opened items). Drill v13 then closed fix 011: **ten
+  clean `standard → orchestrator` switch samples**, no 176-tool mount in any.
 - Batch-6 fixes prompt written (2026-09-27): `~/Desktop/opencode-harness-fixes-prompt-6.md` — a
   **mandatory, completion-gated** opencode prompt for the six harness fixes the v16–v26 drills
   justified, each with its drill citation, the exact seam (verified line numbers), the required
@@ -39,6 +40,68 @@
   process-token cookie and `/v1/models` is not mounted (verified now: `/v1/models` → **404**,
   `/api/routes` → **401**, `/api/providers` → **401**). No new RPC method, no auth change. Gate raised to
   **39 fixes / 77 `PRESENT` lines**.
+- What changed this turn (2026-09-27, batch 7 — harness fixes 037-038, the two
+  remaining drill-opened items):
+  - **037 landed** as `bugs/037-workflow-agent-effort-option/` (README,
+    EVIDENCE, VERSIONS, UPSTREAM-DRAFT, six patches, check/reapply,
+    `scripts/effort-option-probe.sh`): `agent(prompt, {effort})` is accepted
+    (non-empty string; anything else `INVALID_ARGUMENT` naming `effort`),
+    forwarded as the child's pinned `agentOptions.reasoningEffort` so the host's
+    035-era `resolveChildEffort()` reports `effortSource: "pinned"`, and
+    recorded as `requestedEffort` beside `resolvedEffort`/`effortSource` on
+    `tool-workflow/agent-start`/`agent-end`. `isolation`/`agentType` stay
+    deferred. Route taken for requirement 4 (documented in the README): the
+    unadvertised effort fails the child's first request with the platform's own
+    `UNSUPPORTED_REASONING_EFFORT` (22 ms after its start record in the stored
+    run), carried as the `WorkflowError.code` the script can catch — no new
+    typed error channel and no silent fallback. Live probe (scratch
+    `DSH_HOME=/tmp/orch-drill-037`, real `~/.dsh` read-only):
+    `requestedEffort low / resolvedEffort low / effortSource pinned`
+    (stage-one), no requested + `max`/`inherited` (stage-two),
+    `extreme`/pinned + failed `UNSUPPORTED_REASONING_EFFORT` with the ladder
+    (stage-three), `effort: 5` → `INVALID_ARGUMENT` (stage-four), child headers
+    `low` and `max`. Six-file round trip byte-exact (forward == installed,
+    reverse == pre-037 baseline); reapply chains 006 → 028 → 035 and is
+    idempotent.
+  - **038 landed** as `bugs/038-offline-route-enumeration/` (README, EVIDENCE,
+    VERSIONS, UPSTREAM-DRAFT, empty patch by design, check/reapply):
+    `bugs/020-…/scripts/dsh-local-session.mjs` gains `--routes` / `--routes
+    --json`, printing the intersection of
+    `settings.yaml#subagent-model-selection.allowedModels` (8 entries) and
+    `storages/llm-pi-ai/catalog/*.json` (33 models) with a two-source `basis:`
+    line, and `routes: UNKNOWN (<reason>)` + exit 1 when either source is
+    missing. `bugs/020-…/README.md` gains "How to enumerate routes" (the
+    in-session `list_subagent_models()` is the authority; `/api/*` needs the
+    process-token cookie; `/v1/models` is not mounted). No new RPC, no auth
+    change. Live: 8 routes via `--routes --json`; empty scratch home →
+    UNKNOWN + exit 1; a scratch orchestrator session's
+    `list_subagent_models({provider:"opencode-go"})` returned the same 8 routes
+    (`headerToolCount: 178`); unauthenticated `/api/routes` → 401,
+    `/api/providers` → 401, `/v1/models` → 404 on both a fresh scratch boot and
+    the running server; token exchange → 303.
+  - **Gates (exact commands and observed results):**
+    `./scripts/check-all.sh` → exit 0, **39 fixes**, `grep -c 'fix PRESENT'` =
+    **77** (78 lines contain `PRESENT`, counting bug 020's legacy
+    `deliverable PRESENT` — the natural output under the repo's one-PRESENT-line
+    -per-fix convention; the prompt's parenthetical 77 is met under the
+    `fix PRESENT` counting that produced its 73 baseline); `./scripts/verify.sh`
+    → `verify: OK`; `./scripts/audit-secrets.sh` → `audit-secrets: OK`;
+    `shfmt -l $(git ls-files '*.sh')` + shellcheck + `typos` → clean;
+    `dsh --profile headless "Reply with exactly the single word: pong"` →
+    `pong` (exit 0).
+  - **Unrelated gate maintenance:** `verify.sh` was red on the current biome
+    2.5.6 rule set in `bugs/031-…/scripts/guard-scope-check.mjs` and
+    `bugs/032-…/scripts/guard-pair-check.mjs` (pre-existing
+    `lint/complexity/useOptionalChain` warnings). Applied biome's own unsafe
+    fix to those two probe files only (semantics preserved; both probes still
+    print `GUARD-SCOPE-CHECK PASS` / `GUARD-PAIR-CHECK PASS`).
+  - **Doctrine note:** the orchestrator preset's doctrine sentence about the
+    route list is out of scope for this repository — the assistant maintains
+    it (the 037 addition also makes the preset's "`agent()` cannot express
+    effort" sentences stale).
+  - **Deployment reminder:** the user must restart `dsh web` to load the
+    patched bundle; the headless `pong` run already proves the patched bundle
+    parses and answers.
 - What changed this turn (2026-09-27, batch-6 independent verification):
   - **Re-verified batch 6 from the outside** (not from its own report): `check-all.sh` exit 0 with **73
     `PRESENT` lines = 37 fixes**; `verify.sh` OK; `audit-secrets.sh` OK; headless `pong` OK on the patched

@@ -163,8 +163,7 @@ const parent = fakeAgent("parent", "/drill", undefined);
   );
   check(
     "A: refusal states the maximal rule and names the writer",
-    error !== undefined &&
-      error.message.includes("refused a read-only delegation that declared no read scope") &&
+    error?.message.includes("refused a read-only delegation that declared no read scope") &&
       error.message.includes("it is treated as covering the whole workspace") &&
       error.message.includes('write-capable agent "writer-a" is still running') &&
       error.message.includes("scopeBasis: maximal"),
@@ -172,10 +171,9 @@ const parent = fakeAgent("parent", "/drill", undefined);
   );
   check(
     "A: refusal keeps the retry guidance sentence",
-    error !== undefined &&
-      error.message.includes(
-        "Wait for the child's settlement notice, or interrupt_agent it, then retry the same read-only call unchanged",
-      ),
+    error?.message.includes(
+      "Wait for the child's settlement notice, or interrupt_agent it, then retry the same read-only call unchanged",
+    ),
   );
   const record = parent.appended.findLast((event) => event.type === "subagent/inspection-scope");
   check(
@@ -214,8 +212,7 @@ const parent = fakeAgent("parent", "/drill", undefined);
   );
   check(
     "C: refusal names the actual overlapping pair, not a collapsed ancestor",
-    error !== undefined &&
-      error.message.includes('"/drill/sub/out"') &&
+    error?.message.includes('"/drill/sub/out"') &&
       error.message.includes('"/drill/sub/out/file.txt"') &&
       !error.message.includes('work covers "/drill"'),
     error?.message,

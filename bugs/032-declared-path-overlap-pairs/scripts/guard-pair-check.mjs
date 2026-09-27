@@ -155,8 +155,7 @@ const ROOT = "/drill/orchestrator-drill-v26";
   );
   check(
     "1: the refusal names both declared paths",
-    error !== undefined &&
-      error.message.includes(`${ROOT}/state/verify1/results.json`) &&
+    error?.message.includes(`${ROOT}/state/verify1/results.json`) &&
       error.message.includes('"writer-overlap"') &&
       error.message.includes("scopeBasis: declared"),
     error?.message,
@@ -205,8 +204,7 @@ const ROOT = "/drill/orchestrator-drill-v26";
   const refused = run(parent, writer, `Review ${ROOT}/state/build/a.py and report.`);
   check(
     "4: the genuine overlap is still refused, naming the real path",
-    refused !== undefined &&
-      refused.message.includes(`${ROOT}/state/build/a.py`) &&
+    refused?.message.includes(`${ROOT}/state/build/a.py`) &&
       !refused.message.includes(`work covers "${ROOT}"`),
     refused?.message,
   );

@@ -94,6 +94,40 @@ harness home — pass `--home` for an isolated run.
 Authentication is untouched: the helper is a client of the existing fence, not
 a bypass. The only optional file it writes is caller-chosen.
 
+## How to enumerate routes
+
+The authority is the **in-session `list_subagent_models` tool**:
+`list_subagent_models()` lists the registered providers,
+`list_subagent_models({provider})` lists that provider's advertised models, and
+`list_subagent_models({provider, model})` inspects one exact route plus its
+reasoning-effort ladder. The answer is policy-filtered by the host at session
+composition (the delegation policy's `allowedModels`).
+
+The HTTP surfaces do **not** answer it: `/api/*` is the authenticated Typert
+channel and every request must pass the process-token → cookie exchange this
+helper performs (unauthenticated requests are 401), and `/v1/models` is not
+mounted at all (404).
+
+`--routes` is the **offline convenience** — no server, no prompt:
+
+```
+node scripts/dsh-local-session.mjs --routes        # provider/model lines + count + basis
+node scripts/dsh-local-session.mjs --routes --json # machine-readable
+```
+
+Its basis is **policy ∩ catalogue**: the delegation policy's allowed routes
+from `$DSH_HOME/settings.yaml`
+(`subagent-model-selection.allowedModels`) intersected with the served
+catalogue the provider ships (`$DSH_HOME/storages/llm-pi-ai/catalog/*.json`).
+It prints 8 routes on this deployment. It is honest about its basis: if either
+source is missing it prints `routes: UNKNOWN (<reason>)` and exits non-zero —
+it never guesses a list.
+
+Measured basis (2026-09-27, drill v26 friction): `/v1/models` → **404**,
+`/api/routes` → **401**, `/api/providers` → **401**; the same session's
+`list_subagent_models({provider:"opencode-go"})` returned the same 8 routes
+`--routes` prints (see `bugs/038-offline-route-enumeration/EVIDENCE.md`).
+
 ## Rejected alternatives
 
 - **`--local-token-file` in the harness.** The token is already announced on

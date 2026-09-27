@@ -1,0 +1,15 @@
+--- pristine/dsh-workflow-worker-thread/lib/index.js
++++ installed/dsh-workflow-worker-thread/lib/index.js
+@@ -570,9 +570,10 @@
+ 				parent: this.parent,
+ 				signal: this.controller.signal,
+ 				...request.schema !== void 0 ? { outputSchema: request.schema } : {},
+-				...request.provider !== void 0 || request.model !== void 0 ? { agentOptions: {
++				...request.provider !== void 0 || request.model !== void 0 || request.agentOptions?.reasoningEffort !== void 0 ? { agentOptions: {
+ 					...request.provider !== void 0 ? { provider: request.provider } : {},
+-					...request.model !== void 0 ? { model: request.model } : {}
++					...request.model !== void 0 ? { model: request.model } : {},
++					...request.agentOptions?.reasoningEffort !== void 0 ? { reasoningEffort: request.agentOptions.reasoningEffort } : {}
+ 				} } : {},
+ 				...this.toolFilter !== void 0 ? { toolFilter: this.toolFilter } : {}
+ 			});

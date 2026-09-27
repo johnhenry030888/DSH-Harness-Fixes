@@ -14,6 +14,7 @@ CONN="$BASE/dsh-client-connection/lib/index.js"
 SESS="$BASE/dsh-api-session-controller/lib/typert.host.js"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 HELPER="$HERE/dsh-local-session.mjs"
+README="$HERE/../README.md"
 ok=0
 
 marker() {
@@ -38,6 +39,15 @@ fi
 marker 'dsh web: ${authenticatedUrl}' "$WEB"
 marker 'authorizeIndex(request, response)' "$CONN"
 marker '@deepseek-ai/dsh-api-session-controller#session/create' "$SESS"
+
+# Bug 038: the offline route-enumeration mode and its documented path/basis.
+marker 'args.routes = true;' "$HELPER"
+marker 'function readPolicyRoutes(settingsPath)' "$HELPER"
+marker 'function readCatalogRoutes(catalogDir)' "$HELPER"
+marker '#subagent-model-selection.allowedModels' "$HELPER"
+marker 'routes: UNKNOWN (' "$HELPER"
+marker '## How to enumerate routes' "$README"
+marker 'The authority is the **in-session `list_subagent_models` tool**' "$README"
 
 if [ "$ok" -eq 0 ]; then echo "bug-020 deliverable PRESENT"; else echo "bug-020 deliverable MISSING"; fi
 exit "$ok"

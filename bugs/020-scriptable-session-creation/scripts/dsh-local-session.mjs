@@ -27,6 +27,12 @@
  *   --timeout <ms>      startup timeout (default 60000)
  *   --turn-timeout <ms> bound on waiting for the prompted turn (default: max(timeout, 120000))
  *   --no-wait           return as soon as the prompt is QUEUED (see below)
+ *   --routes            print the served, policy-filtered LLM routes OFFLINE (no
+ *                       server, no prompt) as the intersection of
+ *                       `settings.yaml#subagent-model-selection.allowedModels`
+ *                       and `storages/llm-pi-ai/catalog/*.json`; exits 0, or
+ *                       prints `routes: UNKNOWN (<reason>)` and exits non-zero
+ *                       when a source is missing (never a guessed list)
  *   --json              print one JSON result object and nothing else
  *   --keep              keep the Web app running; print the URL and cookie for follow-ups
  *
@@ -39,6 +45,13 @@
  * `headerToolCount`, `assistantText` and `waitedMs` beside the ids. The wait is
  * bounded by `--turn-timeout`; a timed-out wait still exits 0 with whatever it
  * observed, so a caller can tell "queued" from "answered".
+ *
+ * `--routes` is the offline convenience for the question the in-session
+ * `list_subagent_models` tool answers authoritatively: the served routes are
+ * policy-filtered, `/api/*` requires the process-token cookie (the server is
+ * NOT started in this mode), and `/v1/models` is not mounted at all. The mode
+ * reads `settings.yaml` and the provider catalogue from disk, prints the
+ * intersection with a `basis:` line naming both sources, and refuses to guess.
  *
  * Exit code 0 only when the session was created; 1 on any failure.
  */
@@ -89,6 +102,9 @@ function parseArgs(argv) {
         break;
       case "--no-wait":
         args.noWait = true;
+        break;
+      case "--routes":
+        args.routes = true;
         break;
       case "--json":
         args.json = true;
@@ -243,6 +259,171 @@ async function rpc(baseUrl, cookie, endpoint, payload) {
   return envelope.result.value;
 }
 
+/** Strip one layer of YAML quotes from a scalar token. */
+function unquoteYaml(value) {
+  if (
+    value.length >= 2 &&
+    ((value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'")))
+  )
+    return value.slice(1, -1);
+  return value;
+}
+
+/**
+ * Read `subagent-model-selection.allowedModels` from `settings.yaml` with a
+ * targeted parser for exactly that list. Anything outside the expected shape is
+ * an UNKNOWN source, never a guessed route.
+ */
+function readPolicyRoutes(settingsPath) {
+  let text;
+  try {
+    text = readFileSync(settingsPath, "utf8");
+  } catch (error) {
+    return { error: `cannot read ${settingsPath}: ${error.code ?? error.message}` };
+  }
+  const lines = text.split(/\r?\n/);
+  const start = lines.findIndex((line) => /^subagent-model-selection:\s*(#.*)?$/.test(line));
+  if (start === -1)
+    return { error: `${settingsPath} has no top-level subagent-model-selection section` };
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.trim() !== "" && !line.trim().startsWith("#") && /^\S/.test(line)) {
+      end = i;
+      break;
+    }
+  }
+  const routes = [];
+  let sawAllowedModels = false;
+  let current;
+  for (const raw of lines.slice(start + 1, end)) {
+    const line = raw.replace(/\s+#.*$/, "").trimEnd();
+    if (line.trim() === "" || line.trim().startsWith("#")) continue;
+    if (/^\s*enabled:\s*(true|false)\s*$/.test(line)) continue;
+    if (/^\s*allowedModels:\s*$/.test(line)) {
+      sawAllowedModels = true;
+      continue;
+    }
+    const item = /^\s*-\s*provider:\s*(\S+)\s*$/.exec(line);
+    if (item !== null) {
+      current = { provider: unquoteYaml(item[1]) };
+      routes.push(current);
+      continue;
+    }
+    const provider = /^\s*provider:\s*(\S+)\s*$/.exec(line);
+    if (provider !== null && current !== undefined) {
+      current.provider = unquoteYaml(provider[1]);
+      continue;
+    }
+    const model = /^\s*model:\s*(\S+)\s*$/.exec(line);
+    if (model !== null && current !== undefined) {
+      current.model = unquoteYaml(model[1]);
+      continue;
+    }
+    return {
+      error: `unrecognized settings.yaml line under subagent-model-selection: ${JSON.stringify(raw.trim())}`,
+    };
+  }
+  if (!sawAllowedModels)
+    return { error: `${settingsPath} subagent-model-selection has no allowedModels list` };
+  if (routes.length === 0) return { error: `${settingsPath} allowedModels is empty` };
+  for (const route of routes)
+    if (route.provider === undefined || route.model === undefined)
+      return { error: `${settingsPath} allowedModels entry lacks provider or model` };
+  return { routes };
+}
+
+/** Read every provider catalogue document's `provider`/`models[].id` set. */
+function readCatalogRoutes(catalogDir) {
+  let names;
+  try {
+    names = readdirSync(catalogDir)
+      .filter((name) => name.endsWith(".json"))
+      .sort();
+  } catch (error) {
+    return {
+      error: `cannot read catalogue directory ${catalogDir}: ${error.code ?? error.message}`,
+    };
+  }
+  if (names.length === 0)
+    return { error: `catalogue directory ${catalogDir} holds no *.json documents` };
+  const routes = new Set();
+  let documents = 0;
+  for (const name of names) {
+    try {
+      const parsed = JSON.parse(readFileSync(join(catalogDir, name), "utf8"));
+      const provider =
+        typeof parsed?.provider === "string" && parsed.provider.length > 0
+          ? parsed.provider
+          : undefined;
+      if (provider === undefined) continue;
+      documents += 1;
+      for (const model of Array.isArray(parsed.models) ? parsed.models : [])
+        if (typeof model?.id === "string" && model.id.length > 0)
+          routes.add(`${provider}\0${model.id}`);
+    } catch {
+      // an unreadable document is a missing source, never a guessed route
+    }
+  }
+  if (documents === 0)
+    return { error: `catalogue directory ${catalogDir} holds no readable provider documents` };
+  return { routes, documents };
+}
+
+/**
+ * Print the served, policy-filtered routes offline: policy ∩ catalogue. The
+ * basis is stated on every path; a missing source yields
+ * `routes: UNKNOWN (<reason>)` and a non-zero exit rather than a guessed list.
+ */
+function printRoutes(homeDir, asJson) {
+  const settingsPath = join(homeDir, "settings.yaml");
+  const catalogDir = join(homeDir, "storages", "llm-pi-ai", "catalog");
+  const policy = readPolicyRoutes(settingsPath);
+  const catalog = readCatalogRoutes(catalogDir);
+  const basis = {
+    policy: `${settingsPath}#subagent-model-selection.allowedModels`,
+    catalog: `${catalogDir}/*.json`,
+    ...(policy.routes === undefined ? {} : { policyRoutes: policy.routes.length }),
+    ...(catalog.routes === undefined ? {} : { catalogModels: catalog.routes.size }),
+  };
+  const missing = [policy.error, catalog.error].filter(Boolean);
+  if (missing.length > 0) {
+    if (asJson)
+      console.log(
+        JSON.stringify({ routes: null, count: null, unknown: missing.join("; "), basis }),
+      );
+    else {
+      console.log(`routes: UNKNOWN (${missing.join("; ")})`);
+      console.log(`basis: policy=${basis.policy} ∩ catalog=${basis.catalog}`);
+    }
+    process.exitCode = 1;
+    return;
+  }
+  const routes = policy.routes
+    .filter((route) => catalog.routes.has(`${route.provider}\0${route.model}`))
+    .sort((a, b) =>
+      a.provider === b.provider
+        ? a.model.localeCompare(b.model)
+        : a.provider.localeCompare(b.provider),
+    );
+  if (asJson) {
+    console.log(
+      JSON.stringify({
+        routes: routes.map((route) => `${route.provider}/${route.model}`),
+        count: routes.length,
+        basis,
+      }),
+    );
+    return;
+  }
+  for (const route of routes) console.log(`${route.provider}/${route.model}`);
+  console.log(`routes: ${routes.length}`);
+  console.log(
+    `basis: policy=${basis.policy} (${basis.policyRoutes} entries) ∩ catalog=${basis.catalog} (${basis.catalogModels} models across ${catalog.documents} document(s))`,
+  );
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
@@ -263,6 +444,10 @@ async function main() {
     ? args.turnTimeout
     : Math.max(timeoutMs, 120000);
   const homeDir = resolve(args.home ?? process.env.DSH_HOME ?? join(homedir(), ".dsh"));
+  if (args.routes === true) {
+    printRoutes(homeDir, args.json === true);
+    return;
+  }
   const cwd = resolve(args.cwd ?? process.cwd());
   const env = { ...process.env };
   if (args.home !== undefined) env.DSH_HOME = resolve(args.home);

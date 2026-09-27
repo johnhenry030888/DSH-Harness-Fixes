@@ -1,0 +1,17 @@
+--- pristine/dsh-workflow-worker-thread/lib/types/types.d.ts
++++ installed/dsh-workflow-worker-thread/lib/types/types.d.ts
+@@ -42,6 +42,14 @@
+     provider?: string;
+     /** The per-child model override, if the call passed one. */
+     model?: string;
++    /**
++     * The per-child options bag the host forwards into the child's creation
++     * options. Currently carries only a pinned reasoning effort (the
++     * `agent()` `effort` option, bug 037): the host resolves
++     * `effortSource: "pinned"` from this field before the child's first
++     * request header exists.
++     */
++    agentOptions?: { reasoningEffort?: string };
+ }
+ /**
+  * The JSON projection of a child's `SubagentResult` crossing the port. The

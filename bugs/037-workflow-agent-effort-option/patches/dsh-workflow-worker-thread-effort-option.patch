@@ -1,0 +1,63 @@
+--- pristine/dsh-workflow-worker-thread/lib/worker.cjs
++++ installed/dsh-workflow-worker-thread/lib/worker.cjs
+@@ -218,11 +218,11 @@
+ 	"phase",
+ 	"schema",
+ 	"provider",
+-	"model"
++	"model",
++	"effort"
+ ]);
+ /** Deferred Claude Code options we name explicitly in the rejection message. */
+ const DEFERRED_AGENT_OPTIONS = new Set([
+-	"effort",
+ 	"isolation",
+ 	"agentType"
+ ]);
+@@ -419,7 +419,8 @@
+ 					prompt: rawPrompt,
+ 					...opts.schema !== void 0 ? { schema: opts.schema } : {},
+ 					...opts.provider !== void 0 ? { provider: opts.provider } : {},
+-					...opts.model !== void 0 ? { model: opts.model } : {}
++					...opts.model !== void 0 ? { model: opts.model } : {},
++					...opts.effort !== void 0 ? { agentOptions: { reasoningEffort: opts.effort } } : {}
+ 				});
+ 			} catch (error) {
+ 				if (this.isCancelled()) throw this.cancelledError();
+@@ -435,7 +436,8 @@
+ 				...phase !== void 0 ? { phase } : {},
+ 				childId: (0, _deepseek_ai_dsh_brand.brandString)(run.id),
+ 				...opts.provider !== void 0 ? { requestedProvider: opts.provider } : {},
+-				...opts.model !== void 0 ? { requestedModel: opts.model } : {}
++				...opts.model !== void 0 ? { requestedModel: opts.model } : {},
++				...opts.effort !== void 0 ? { requestedEffort: opts.effort } : {}
+ 			};
+ 			this.observer.agentStart(info);
+ 			try {
+@@ -518,8 +520,8 @@
+ 		const record = opts;
+ 		for (const key of Object.keys(record)) {
+ 			if (SUPPORTED_AGENT_OPTIONS.has(key)) continue;
+-			if (DEFERRED_AGENT_OPTIONS.has(key)) throw new _deepseek_ai_dsh_workflow.WorkflowError(`agent() option "${key}" is deferred and not supported by this engine (supported: label, phase, schema, provider, model)`, "UNSUPPORTED_OPTION");
+-			throw new _deepseek_ai_dsh_workflow.WorkflowError(`agent() option "${key}" is not recognized (supported: label, phase, schema, provider, model)`, "UNSUPPORTED_OPTION");
++			if (DEFERRED_AGENT_OPTIONS.has(key)) throw new _deepseek_ai_dsh_workflow.WorkflowError(`agent() option "${key}" is deferred and not supported by this engine (supported: label, phase, schema, provider, model, effort)`, "UNSUPPORTED_OPTION");
++			throw new _deepseek_ai_dsh_workflow.WorkflowError(`agent() option "${key}" is not recognized (supported: label, phase, schema, provider, model, effort)`, "UNSUPPORTED_OPTION");
+ 		}
+ 		for (const key of [
+ 			"label",
+@@ -527,6 +529,7 @@
+ 			"provider",
+ 			"model"
+ 		]) if (record[key] !== void 0 && typeof record[key] !== "string") throw new _deepseek_ai_dsh_workflow.WorkflowError(`agent() option "${key}" must be a string`, "INVALID_ARGUMENT");
++		if (record.effort !== void 0 && (typeof record.effort !== "string" || record.effort.length === 0)) throw new _deepseek_ai_dsh_workflow.WorkflowError('agent() option "effort" must be a non-empty string', "INVALID_ARGUMENT");
+ 		let schema;
+ 		if (record.schema !== void 0) try {
+ 			(0, _deepseek_ai_dsh_tools.assertObjectJsonSchema)(record.schema);
+@@ -541,6 +544,7 @@
+ 			...record.phase !== void 0 ? { phase: record.phase } : {},
+ 			...record.provider !== void 0 ? { provider: record.provider } : {},
+ 			...record.model !== void 0 ? { model: record.model } : {},
++			...record.effort !== void 0 ? { effort: record.effort } : {},
+ 			...schema !== void 0 ? { schema } : {}
+ 		};
+ 	}

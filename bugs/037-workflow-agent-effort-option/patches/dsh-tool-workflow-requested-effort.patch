@@ -1,0 +1,27 @@
+--- pristine/dsh-tool-workflow/lib/index.js
++++ installed/dsh-tool-workflow/lib/index.js
+@@ -84,6 +84,7 @@
+ 			childId: agent.childId,
+ 			...agent.requestedProvider === void 0 ? {} : { requestedProvider: agent.requestedProvider },
+ 			...agent.requestedModel === void 0 ? {} : { requestedModel: agent.requestedModel },
++			...agent.requestedEffort === void 0 ? {} : { requestedEffort: agent.requestedEffort },
+ 			...effortFields(agent)
+ 		})) active.delete(info.id);
+ 	});
+@@ -112,6 +113,7 @@
+ 			...agent.errorCode === void 0 ? {} : { errorCode: agent.errorCode },
+ 			...agent.requestedProvider === void 0 ? {} : { requestedProvider: agent.requestedProvider },
+ 			...agent.requestedModel === void 0 ? {} : { requestedModel: agent.requestedModel },
++			...agent.requestedEffort === void 0 ? {} : { requestedEffort: agent.requestedEffort },
+ 			...effortFields(agent)
+ 		})) active.delete(info.id);
+ 	});
+@@ -157,7 +159,7 @@
+ The workflow's identity rides the \`meta\` parameter as JSON: required \`name\` (short kebab-case) and \`description\` strings, optional \`whenToUse\` string and \`phases\` array (\`{title, detail?, provider?, model?}\`). The \`script\` parameter is the plain JavaScript body ONLY (NOT TypeScript, and NO \`export const meta\` statement — meta is a parameter, not code), running with top-level await; end with \`return <value>\` — the value must be JSON-serializable and is this tool's result.
+ 
+ Script-body hooks:
+-- \`agent(prompt, opts?): Promise<any>\` — run one subagent to completion. Without \`opts.schema\` it resolves to the child's final text; with \`opts.schema\` (an object-rooted JSON Schema using ONLY type/properties/required/additionalProperties/items/enum/const/oneOf — no pattern/format/numeric bounds) it resolves to the validated object. A failed child REJECTS the awaited call with a \`WorkflowError\` whose \`code\` is the child's own machine-readable failure code (the same code the direct delegation path reports, e.g. \`MODEL_NOT_CONFIGURED\` or \`UNKNOWN_MODEL\`; \`AGENT_RESULT\` when the child reports no code) — \`await agent(...)\` inside a plain try/catch and branch on \`error.code\`, never on prose. The rejection is non-fatal by design, so \`pipeline()\`/\`parallel()\` still map a failed item to \`null\` (an item that must fail loudly needs its own try/catch). Every stage also emits \`workflow/agent-start\`/\`agent-end\` records in the caller's run history whose \`agent-end\` carries the \`error\` diagnostic, its \`errorCode\`, and \`requestedProvider\`/\`requestedModel\` when the child failed before producing output. Other opts: \`label\` (display), \`phase\` (progress group), and independent \`provider\`/\`model\` LLM target overrides (either may be provided alone). Anything else (\`effort\`/\`isolation\`/\`agentType\`) is rejected loudly.
++- \`agent(prompt, opts?): Promise<any>\` — run one subagent to completion. Without \`opts.schema\` it resolves to the child's final text; with \`opts.schema\` (an object-rooted JSON Schema using ONLY type/properties/required/additionalProperties/items/enum/const/oneOf — no pattern/format/numeric bounds) it resolves to the validated object. A failed child REJECTS the awaited call with a \`WorkflowError\` whose \`code\` is the child's own machine-readable failure code (the same code the direct delegation path reports, e.g. \`MODEL_NOT_CONFIGURED\` or \`UNKNOWN_MODEL\`; \`AGENT_RESULT\` when the child reports no code) — \`await agent(...)\` inside a plain try/catch and branch on \`error.code\`, never on prose. The rejection is non-fatal by design, so \`pipeline()\`/\`parallel()\` still map a failed item to \`null\` (an item that must fail loudly needs its own try/catch). Every stage also emits \`workflow/agent-start\`/\`agent-end\` records in the caller's run history whose \`agent-end\` carries the \`error\` diagnostic, its \`errorCode\`, and \`requestedProvider\`/\`requestedModel\` when the child failed before producing output. Other opts: \`label\` (display), \`phase\` (progress group), and independent \`provider\`/\`model\` LLM target overrides (either may be provided alone). \`effort\` pins the child's reasoning effort: a non-empty string naming a level the target model advertises (\`low\`, \`medium\`, \`max\`, …); combine it with \`provider\`/\`model\` to pin the whole route. The run record keeps the requested value (\`requestedEffort\`) beside the resolved one (\`resolvedEffort\` with \`effortSource: "pinned"\`). An effort the target model does not advertise fails that stage loudly with the platform's own \`UNSUPPORTED_REASONING_EFFORT\` code (visible as \`errorCode\` on \`agent-end\`) rather than silently falling back to a default. Anything else (\`isolation\`/\`agentType\`) is rejected loudly.
+ - \`pipeline(items, ...stages): Promise<any[]>\` — run each item through the stages independently with NO barrier between stages (prefer this for multi-stage work). Each stage receives \`(prev, item, index)\`. An ordinary stage throw drops that ITEM to \`null\` and skips its remaining stages.
+ - \`parallel(thunks): Promise<any[]>\` — run zero-argument functions concurrently and await ALL of them (a barrier; use only when a stage genuinely needs every prior result together). A throwing thunk resolves to \`null\`.
+ - \`phase(title)\` — start a progress phase; \`log(message)\` — narrate progress; \`args\` — the tool call's \`args\` input, verbatim.

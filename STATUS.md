@@ -1,6 +1,6 @@
 # Status
 
-All thirty-seven local fixes are applied to the `dsh` 0.1.5-rc.2 bundle (bugs
+All thirty-nine local fixes are applied to the `dsh` 0.1.5-rc.2 bundle (bugs
 001-004 re-applied 2026-09-20; bug 005 added 2026-09-25; bugs 006-010 added
 2026-09-25 from the orchestrator drill v3/v4 findings; bugs 011-014, 018, 019
 added 2026-09-26 from drill v6/v7/v8 findings; bugs 014b, 017, 021, 022 added
@@ -11,9 +11,32 @@ drill v14's single FAIL; **bugs 031-036 added 2026-09-27 from drill
 v16/v17/v19/v21-v26 findings** — the ordering guard's undeclared-scope bypass
 and declared-path collapse, the runtime `boxSeconds` deadline, steer
 `deliveredAt`/boundary telemetry, workflow resolved-effort records + adapter
-header honesty, and the `list_agents` declared tree), with patches generated
-against pristine published sources and verified by pristine->reapply
-round-trips.
+header honesty, and the `list_agents` declared tree; **bugs 037-038 added
+2026-09-27 — the two remaining drill-opened items** (the workflow
+`agent(prompt, {effort})` pin, and the documented offline route list), with
+patches generated against pristine published sources and verified by
+pristine->reapply round-trips.
+
+Batch note (2026-09-27, fixes 037-038): both landed with green `check.sh`,
+idempotent `reapply.sh`, a byte-exact six-file patch round trip for 037
+(forward == installed, reverse == pre-037 baseline; 038 has no bundle patch by
+design), and live evidence pasted in each `EVIDENCE.md` — **037**: a
+four-stage workflow recording `requestedEffort low`/`resolvedEffort low`/
+`effortSource pinned` (stage 1), inherited `max` (stage 2), the platform's
+`UNSUPPORTED_REASONING_EFFORT` for the unadvertised `extreme` (stage 3, 22 ms
+after its start record) and `INVALID_ARGUMENT` naming `effort` for a non-string
+(stage 4), with child headers `low` and `max`; **038**: `--routes --json`
+printing **8** routes (policy ∩ catalogue) and `routes: UNKNOWN (…)` + exit 1
+on an empty home, the in-session `list_subagent_models` cross-check matching,
+and unauthenticated `/api/routes` still **401** / `/v1/models` **404** on both
+a scratch boot and the running server. `check-all.sh` exits 0 with **39 fixes**
+(**77 `fix PRESENT` lines**; 78 lines containing `PRESENT` counting bug 020's
+legacy `deliverable PRESENT`), `verify.sh` prints `verify: OK`, and
+`audit-secrets.sh` exits 0. Two unrelated repo probe files (bugs 031/032
+`scripts/*.mjs`) were reformatted minimally for the current biome 2.5.6 rule
+set so the shared gate stays red-free — their probes still PASS. **The user
+must restart `dsh web` to load the patched bundle**; `dsh --profile headless
+"…pong"` already prints `pong`.
 
 Batch note (2026-09-27, fixes 031-036): all six landed with green `check.sh`,
 idempotent `reapply.sh`, a byte-exact six-fix patch round trip (forward ==
@@ -324,6 +347,8 @@ carries the outstanding live probes for 016, 020, 027, 028, 029 and 030.
 | [034](bugs/034-steer-telemetry/README.md) | steer delivery has no timestamps: the deliveredAt → boundary → reply split is unmeasurable (v21 §4.3; v23 §5 item 5; v25 §5 item 8 measured −0.306 s; v26 §5 item 5 only the 14 s total) | APPLIED to bundle 0.1.5-rc.2 (`deliveredAt` in the `send_message` result, durable `subagent/steer` on the child, `subagent/steer-boundary` at the inbox claim; fake-clock probe + live probe: 20:53:43.297Z → 20:53:43.435Z → 20:53:49.370) | NOT-FILED |
 | [035](bugs/035-workflow-resolved-effort/README.md) | workflow run records omit the resolved effort and an adapter header can lack the key entirely (v16 F5/v17 §2 silent lead-max; v19 §5 item 2/v25 §5 item 2 longcat header had no `reasoningEffort`) | APPLIED to bundle 0.1.5-rc.2 (`resolvedEffort` + `effortSource` on `tool-workflow/agent-start`/`agent-end`, creation-time resolution in the worker host, and the explicit `"default"` sentinel in `dsh-llm` handled by both adapters; live probe: 3 records incl. `max`/`inherited`, every header carries the key, longcat `"default"`) | NOT-FILED |
 | [036](bugs/036-list-agents-declared-tree/README.md) | `list_agents` renders the session cwd instead of the delegation's declared tree; settled rows carry no tree/policy (v16 F2, v17 §5, v20 F2, v21 §5 item 4, v22 §5 item 4, v26 §5 item 4) | APPLIED to bundle 0.1.5-rc.2 (service exposes the guard's `declaredWorkOf`; rows render `[writes in <declared path> (declared)]` + `trees`/`treeBasis`, settled-row policy absence documented; live probe shows the declared drill subpath with `checkedAt`/`filePolicy`) | NOT-FILED |
+| [037](bugs/037-workflow-agent-effort-option/README.md) | `agent()` accepts no `effort`, so a workflow stage cannot be pinned and silently inherits the lead's effort (v16 F5, v17 §2; v19 §5 item 2/v25 §5 item 2 unmatched pair; v21 §7 R1 pinned merge leaves the workflow) | APPLIED to bundle 0.1.5-rc.2 (`effort` accepted as a non-empty string and forwarded as the child's pinned `agentOptions.reasoningEffort`; `requestedEffort` recorded beside 035's `resolvedEffort`/`effortSource: "pinned"`; unadvertised effort fails loudly with the platform's `UNSUPPORTED_REASONING_EFFORT`; `isolation`/`agentType` stay deferred; live probe: `low`/pinned, inherited `max`, `extreme` rejected in 22 ms with the ladder, `effort: 5` → `INVALID_ARGUMENT`) | NOT-FILED |
+| [038](bugs/038-offline-route-enumeration/README.md) | no documented, offline way to enumerate the served (policy-filtered) routes — `/v1/models` 404, `/api/routes` 401 (v25 §0, v26 §0/§7 F-route: header/effort table NOT MEASURED) | APPLIED (helper + documented path; no harness code change — auth untouched). `dsh-local-session.mjs --routes` prints policy ∩ catalogue (`allowedModels` ∩ `storages/llm-pi-ai/catalog/*.json`) with a `basis:` line, `--json`, and honest `UNKNOWN` + non-zero when a source is missing; README states the in-session `list_subagent_models()` authority and the `/api` cookie / unmounted `/v1/models` facts | NOT-FILED |
 
 ## Legend
 
