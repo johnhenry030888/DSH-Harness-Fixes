@@ -25,6 +25,28 @@ Verification note (2026-09-26, drill v13): fix 011 is **CLOSED** — ten clean
 corroborated at
 transcript level, no 176-tool mount.
 
+Verification note (2026-09-27, drill v26, closure attempt): **not closed — and the
+blockers are now structural rather than doctrinal.** Green: the row gate's
+parameter multi-value axis worked (7/7 parameters at ≥2 values, 30 rows, 22
+mutants, 0 decorative / 0 inconsistent / 0 unguarded, plus a smoke run that proved
+the gate can fail), sweep 2 executed **22/22 kills with 0 survivors** on a
+fresh-tree-per-unit driver, the review reproduced **5/5** claimed failures and named
+two further deviations, `app/` stayed clean, all four lead-owned frozen artifacts
+verified at close, preflight **14 s**, and the guard's four sides were observed
+(refused with a declared scope → admitted after settlement; undeclared → admitted;
+and a **new false refusal on genuinely disjoint scopes**). Missed: wall **1 775 s**
+(pre-dispatch 340 s of which 326 s is frozen-artifact authoring, post-dispatch
+1 435 s), lead calls **32**, share **not measured**, merge **385 s**, barrier
+**410 s**, lane returns **10/12**, sweep 1 executed **nothing** (662 s, no artifact
+at all), the accounting lane returned `UNCOMPARABLE`, and **5 of 30 rows failed a
+type-strict replay** — the rows pinned the mean's *value* four ways but never its
+*type*, so `Decimal` shipped where `float` was pinned (R18/R19 fail even loosely).
+The merge's own `counts` block also contradicted two independent recounts (3/8 vs
+7/0) while its per-item quotes were faithful. Two guard defects now have verbatim
+evidence in both directions: an **undeclared read scope is admitted** while writers
+are live, and a **disjoint scope is refused** with the writer's declared work
+reported as a path it merely touched.
+
 Verification note (2026-09-27, drill v25, in-driver run): **the in-driver recipe
 reproduced and the disagreement branch was exercised on real data; a real
 correctness gap appeared in the lead's own frozen rows.** Green: three lanes ran

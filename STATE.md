@@ -8,6 +8,39 @@
   016, 020, 026-030 — landed from drill v12's findings plus the orchestrator
   efficiency pass). Drill v13 then closed fix 011: **ten clean
   `standard → orchestrator` switch samples**, no 176-tool mount in any.
+- What changed this turn (2026-09-27, drill v26 follow-up):
+  - **drill v26: not closed; the blockers are structural.** Green: parameter
+    multi-value coverage (7/7 params at ≥2 values) with 0 decorative/inconsistent
+    rows and a gate smoke test; sweep 2 did **22/22 kills, 0 survivors** on a
+    fresh-tree driver; the review reproduced **5/5** failures plus two extra
+    deviations; `app/` clean; all frozen artifacts verified; preflight 14 s; the
+    guard's four sides observed. Missed: wall **1 775 s** (326 s of the 340 s
+    pre-dispatch is frozen-artifact authoring), calls **32**, share **not measured**,
+    barrier **410 s** (slowest sibling 410 s vs 75 s), merge **385 s**, returns
+    **10/12**, sweep 1 executed **nothing** (662 s, zero bytes), the accountant
+    returned `UNCOMPARABLE`, and **5/30 rows failed a type-strict replay** — the
+    rows pinned the mean's value four ways but never its type (`Decimal` shipped
+    where `float` was pinned; R18/R19 fail even loosely). The merge's `counts`
+    block contradicted two independent recounts (3/8 vs 7/0) while its quotes were
+    faithful.
+  - **Persona corrected (backup `agent.cordis.yml.pre-v27-20260927`, five
+    sentences):** run every in-driver lane under an **external `timeout <box>`** and
+    treat **no artifact after ~60 s as a hang** (two v26 lanes produced nothing at
+    all and cost a sweep plus the whole measurement bundle); a measurement lane
+    emits its **first counter before parsing anything**; the row gate must **pin the
+    returned type** as well as multiple values; a consumer's poll window must be
+    **≥ the producer's box** with a producer start sentinel, and a lane publishing
+    counts must **recount its own items and fail loudly on mismatch**; and guard
+    probes must **always declare a read scope** and expect a **false refusal on
+    disjoint scopes** (restate narrower and retry once).
+  - **Harness batch now clearly justified (not yet implemented):** the ordering
+    guard's two defects — undeclared scope admitted, disjoint scope refused — have
+    verbatim evidence from v25/v26 in both directions, and the box/discipline rules
+    that keep failing are the ones a harness could enforce rather than a prompt.
+  - **Drill v27 written** (`~/Desktop/orchestrator-drill-prompt-v27.md`): the
+    closure attempt with external timeouts, the type axis, producer/consumer
+    windows, merge self-recount, declared scopes, and a cheaper frozen-artefact
+    path (freeze rows first, let the gate grow).
 - What changed this turn (2026-09-27, drill v25 follow-up):
   - **drill v25: the in-driver recipe held; the correctness gap moved back to the
     lead's own rows.** In-driver loops did 21 mutants in 1.3 s and 28 in 1.6 s;
