@@ -71,6 +71,12 @@
     /tmp/orch-drill-036/declared/sub/file.txt (declared)]`).
   - **Deployment note:** the user must restart `dsh web` to load the patched
     bundle; `dsh --profile headless "…pong"` already prints `pong` (exit 0).
+    A scratch-home `dsh web` boot on the patched bundle composes the
+    orchestrator preset with **178 tools** (`turnCompleted: true`,
+    `headerToolCount: 178`, assistantText `ok`) and the header carries
+    `subagent`, `list_subagent_models`, `list_agents`, and `send_message` —
+    the mount is clean on the 17-name filter and the 178/161 arithmetic is
+    untouched.
   - Scratch homes used by the probes live under `/tmp/orch-drill-033/034/035/036`;
     `~/.dsh` was read-only throughout (credentials symlinked, sessions own).
   - **Commit/push:** `a7caefc` (65 files, +4591/-5; pre-commit
