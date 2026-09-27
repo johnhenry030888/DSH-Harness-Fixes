@@ -25,6 +25,27 @@ Verification note (2026-09-26, drill v13): fix 011 is **CLOSED** — ten clean
 corroborated at
 transcript level, no 176-tool mount.
 
+Verification note (2026-09-27, drill v23, wall-clock run): **the v22 coupling defect
+is CLOSED; the wall bar is still missed, now for lane-box discipline.** Closed and
+green: the measurement lane finished at **177 s of its 180 s box** and marked the
+unmeasurable row unmeasurable instead of waiting on the verify lane's sentinel
+(`consumer_gated_on_producer: false`); the AST row gate with its discriminating-ness
+matrix ran before freezing and **caught two dead rows** (27 rows, 17/17 mutants
+killed, 0 decorative); the disagreement-engineering worked exactly as designed
+(4 underdetermined items → **1 genuine conflict**, quoted verbatim and adjudicated);
+barrier **120 s**, merge **18 s / 3 271 output tokens**, both candidates row-pinned
+(mimo `low`, longcat `medium` against the lead's `max`), preflight **9 s** (bash
+basis), no ordering violation, no lead-owned file touched, clean artifact dir.
+Missed: total wall **1 622 s** (bar 1 500), lead calls **18** (bar 16) and lead
+input share **34.46 % uncached / 32.58 % cache-inclusive** (bar 17 %) — the share is
+a **lead-context** failure this time: one un-capped `grep -rl` over the session
+store returned **52,869 B** of transcripts that re-entered every later request; and
+two lanes failed their boxes (verify ran ~2x its 300 s box and executed **0 of 19
+mutants**; the sweep lane wrote nothing for 235 s and produced no artifact), which
+cost ~380 s and made the regression sweep PARTIAL/FAIL. The guard's root-scoped
+overlap was observed live again: a read-only lane was refused while any writer in
+the drill was live.
+
 Verification note (2026-09-27, drill v22, lead-call budget): **the headline
 objective is MET — 16 lead model calls (v21: 38) and a lead input share of 11.98 %
 (v21: 33.12 %) — with every correctness/evidence bar green**: 25/25 suite run by

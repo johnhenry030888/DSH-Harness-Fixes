@@ -8,6 +8,34 @@
   016, 020, 026-030 — landed from drill v12's findings plus the orchestrator
   efficiency pass). Drill v13 then closed fix 011: **ten clean
   `standard → orchestrator` switch samples**, no 176-tool mount in any.
+- What changed this turn (2026-09-27, drill v23 follow-up):
+  - **drill v23: the v22 coupling defect is closed; the wall bar moved to lane-box
+    discipline.** Green: measurement finished 177/180 s and marked the unmeasurable
+    row unmeasurable; the AST row gate with a discriminating-ness matrix caught two
+    dead rows before freeze (27 rows, 17/17 mutants killed, 0 decorative); the
+    engineered disagreement produced **1 genuine conflict** quoted and adjudicated;
+    barrier 120 s; merge 18 s / 3 271 tokens; both candidates row-pinned; preflight
+    9 s; no ordering violation; clean dir. Missed: wall **1 622 s** (bar 1 500),
+    lead calls **18** (bar 16), share **34.46 % uncached / 32.58 % cache-inclusive**
+    (bar 17 %), lane returns 8/10, regression sweep PARTIAL — causes: one un-capped
+    session-store `grep` put **52,869 B** into the lead's context and re-sent it
+    every call; verify ran ~2x its box and executed 0 of 19 mutants; the sweep lane
+    wrote nothing in 235 s (and blocked the review through the guard's root scope).
+  - **Persona corrected (backup `agent.cordis.yml.pre-v24-20260927`, four
+    sentences):** **the expensive work goes first** in a boxed lane and the box is
+    re-read before every unit (v23's verify spent 430 s of a 300 s box on
+    bookkeeping and executed nothing); a lane with **no progress artifact after
+    ~90 s is stalled** — interrupt and re-scope instead of waiting; **never let
+    discovery output into the lead's context** (cap every discovery command, never
+    grep `~/.dsh` as discovery); take an author's family from its own
+    `request/header`, never from code style; and a lane self-checking a sentinel
+    must use `max(mtime)` over every owner in scope.
+  - **Open harness items stay six**, with the guard's declared-scope collapse now
+    carrying live evidence (v23 observed the refusal naming the drill root, which
+    serializes a read-only lane behind every writer in the drill).
+  - **Drill v24 written** (`~/Desktop/orchestrator-drill-prompt-v24.md`): the
+    wall-clock closure run — v23's shape with box-first discipline, the stall rule,
+    capped discovery, and a regression sweep lane that must return artifacts.
 - What changed this turn (2026-09-27, drill v22 follow-up):
   - **drill v22: the lead-call budget works.** 16 lead model calls (v21: 38) and a
     lead input share of **11.98 %** (v21: 33.12 %), with every correctness and
