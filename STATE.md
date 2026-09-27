@@ -8,6 +8,34 @@
   016, 020, 026-030 — landed from drill v12's findings plus the orchestrator
   efficiency pass). Drill v13 then closed fix 011: **ten clean
   `standard → orchestrator` switch samples**, no 176-tool mount in any.
+- What changed this turn (2026-09-27, drill v24 follow-up):
+  - **drill v24: correctness spine solid, wall bar missed by ~484 s for the v23
+    disease.** Green: the AST gate caught 4 decorative + 5 inconsistent rows before
+    the freeze; two independent sweeps executed **38 mutants**; the review
+    adjudicated both survivors with proofs; 1 genuine conflict quoted; barrier
+    158.9 s; merge 118 s; guard refuse→admit with `scope_granularity=root`;
+    preflight 10 s; `app/` byte-clean. Missed: wall **1 984 s**, lead calls ~20,
+    share **not measured** (the measurement lane overran and was interrupted before
+    emitting counters), lane returns 8/11, accounting lane not run, banner quote
+    missed (the sweep quoted the delegation prompt — same record type *and* seq
+    slot). The one lane with an in-driver deadline loop did **19 mutants in 13 s**
+    against the verify lane's **400 s for the same 19**.
+  - **Persona corrected (backup `agent.cordis.yml.pre-v25-20260927`, six
+    sentences):** **put the box in the driver, not the prompt** (one bash call whose
+    loop re-checks the deadline before every unit and appends partial output);
+    **stall = no advancement** (bytes/rows over ~30 s), not merely a missing file;
+    mutation drivers must **self-verify** that the mutation changed the file before
+    recording a survivor; start per-unit work on the **cheap** lane and keep the
+    strong lane for the fix round; dispatch the **accounting lane in the producer's
+    wave** and carry a lane-id map for steers; require a **content check** when
+    quoting the 027 banner; audit degenerate inputs **at authoring time**; and note
+    that `/tmp` is wiped for read-only lanes but **persists for write-capable**
+    ones.
+  - **Open harness items stay six**; the guard's declared-scope collapse
+    (`scope_granularity=root`) now has verbatim live evidence in two drills.
+  - **Drill v25 written** (`~/Desktop/orchestrator-drill-prompt-v25.md`): the
+    wall-clock closure with in-driver boxes, advancement-based stall detection,
+    cheap-lane gating, same-wave accounting, and the banner content check.
 - What changed this turn (2026-09-27, drill v23 follow-up):
   - **drill v23: the v22 coupling defect is closed; the wall bar moved to lane-box
     discipline.** Green: measurement finished 177/180 s and marked the unmeasurable

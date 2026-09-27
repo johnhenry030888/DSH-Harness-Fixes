@@ -25,6 +25,23 @@ Verification note (2026-09-26, drill v13): fix 011 is **CLOSED** — ten clean
 corroborated at
 transcript level, no 176-tool mount.
 
+Verification note (2026-09-27, drill v24, box-discipline run): **the correctness
+spine is solid; the wall bar missed for the same disease — lanes that overrun.**
+Green: the AST gate with a discriminating-ness matrix caught **4 decorative + 5
+inconsistent rows before the freeze** (and a re-run proved the gate can fail), two
+independent mutation sweeps **executed 38 mutants** (19 + 19, not 0 like v23), the
+read-only review adjudicated both survivors with proofs (one defective application,
+one equivalent), the engineered disagreement produced a genuine conflict (D8,
+quoted and adjudicated), barrier **158.9 s**, merge **118 s**, guard refuse→admit
+with `scope_granularity=root` observed verbatim, preflight **10 s**, no ordering
+violation, `app/` byte-clean. Missed: wall **1 984 s** (bar 1 500), lead calls
+**~20** (bar 16), share **not measured** (the measurement lane overran and was
+interrupted before it emitted the counters), lane returns **8/11**, the accounting
+lane **not run**, and the banner quote (the sweep quoted the delegation prompt —
+same record type and seq slot as the banner). Root cause, in the drill's own words:
+three lanes overran their boxes (2x, 1.6x, 1.8x) and returned nothing, while the one
+lane given an in-driver deadline loop did **19 mutants in 13 s**.
+
 Verification note (2026-09-27, drill v23, wall-clock run): **the v22 coupling defect
 is CLOSED; the wall bar is still missed, now for lane-box discipline.** Closed and
 green: the measurement lane finished at **177 s of its 180 s box** and marked the
