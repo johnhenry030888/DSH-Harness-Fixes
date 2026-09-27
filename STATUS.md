@@ -24,6 +24,23 @@ and live probes (033/034/035/036) pasted in each `EVIDENCE.md`;
 `dsh --profile headless "…pong"` already prints `pong` on the patched
 bundle.
 
+Independent re-verification (assistant, 2026-09-27, same session as the reports): the batch was
+re-checked from the outside rather than from its own report — `check-all.sh` exit 0 with **73 `PRESENT`
+lines (37 fixes)**, `verify.sh` OK, `audit-secrets.sh` OK, `dsh --profile headless "…pong"` → `pong` on the
+patched bundle, the three module probes re-run green (031 `GUARD-SCOPE-CHECK PASS`, 032
+`GUARD-PAIR-CHECK PASS` — including the v26 A3 case "writer that only touched `/tmp/v26_tstart` is
+admitted" — and 034 `STEER-CHECK PASS`), and all four live probes re-run green:
+**033** box hit at 15 s in both the per-call and row-config variants with partial output and the durable
+`subagent/box {boxSeconds: 15, elapsedSeconds: 15, hit: true}` record;
+**034** ordered triple `deliveredAt 21:11:43.518Z → boundaryAt .620Z → reply`, with `subagent/steer` and
+`subagent/steer-boundary`;
+**035** every child request header carries `reasoningEffort` (longcat-2.0 = `"default"`, deepseek = `max`)
+and every `agent-start` carries `resolvedEffort` + `effortSource`;
+**036** the row renders `[writes in /tmp/orch-drill-036/declared/sub/file.txt (declared)]` with `checkedAt`
+and `filePolicy`. No BLOCKED entries and no unreported gaps were found; the orchestrator preset's doctrine
+was then updated to the new semantics (guard fail-closed/declared paths, `boxSeconds` as a harness
+guarantee, steer stamps, `resolvedEffort`/`effortSource`, declared-tree rows).
+
 Deployment note (2026-09-26): `~/.dsh/settings.yaml` now **deliberately**
 re-pins the eight `opencode-go.models` entries, so `llm.listModels()` serves the
 pinned 8. Bug 005's check no longer fails on a pin (it prints a NOTE); bug 012

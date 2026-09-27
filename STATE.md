@@ -22,7 +22,29 @@
   **37 fixes present**, requires per-fix patch round-trips, behavioural or live proofs, `verify.sh`/`audit-secrets.sh`/
   hooks/headless-`pong` green, STATUS+STATE updates, commit+push, and a BLOCKED entry with the exact error for
   anything not landed (silent skipping is defined as a failed batch).
-- What changed this turn (2026-09-27, batch 6 — harness fixes 031-036):
+- What changed this turn (2026-09-27, batch-6 independent verification):
+  - **Re-verified batch 6 from the outside** (not from its own report): `check-all.sh` exit 0 with **73
+    `PRESENT` lines = 37 fixes**; `verify.sh` OK; `audit-secrets.sh` OK; headless `pong` OK on the patched
+    bundle; the three module probes re-run green — **031** `GUARD-SCOPE-CHECK PASS` (including "the A3 shape
+    (writer that only touched `/tmp/v26_tstart`) is admitted"), **032** `GUARD-PAIR-CHECK PASS`, **034**
+    `STEER-CHECK PASS`; and all four live probes re-run green: **033** box hit at 15 s in both the per-call
+    and row variants with partial output and `subagent/box {boxSeconds: 15, elapsedSeconds: 15, hit: true}`;
+    **034** ordered triple `deliveredAt 21:11:43.518Z → boundaryAt .620Z → reply` with `subagent/steer` +
+    `subagent/steer-boundary`; **035** every child header carries `reasoningEffort` (longcat `"default"`,
+    deepseek `max`) and every `agent-start` carries `resolvedEffort` + `effortSource`; **036** the row renders
+    `[writes in /tmp/orch-drill-036/declared/sub/file.txt (declared)]` with `checkedAt` and `filePolicy`. No
+    BLOCKED entries and no unreported gaps.
+  - **Doctrine updated to the new semantics** (backup `agent.cordis.yml.pre-v28-20260927`, five sentences):
+    the guard is fail-closed and declared-path based (an undeclared read scope is `maximal`; incidental
+    mentions no longer refuse; a refusal now means real overlap); **set `boxSeconds` on every delegation** and
+    treat the runtime box as the guarantee, keeping the in-driver loop for partial output; steer timing is
+    read from `subagent/steer` / `subagent/steer-boundary`; `resolvedEffort`/`effortSource` is read from the
+    workflow run record (and `inherited` on a stage you meant to pin is a defect); and a `list_agents` row's
+    `[writes in <path> (declared)]` carries its `treeBasis`.
+  - **Drill v27 rewritten as the post-batch acceptance run** (`~/Desktop/orchestrator-drill-prompt-v27.md`):
+    job A accepts 031–036 live with a pasted record per fix; job B re-attempts v26's quality and cost bars now
+    that the crutches are structural.
+- Earlier this turn (2026-09-27, batch 6 — harness fixes 031-036):
   - **All six landed**, each as `bugs/031-…` … `bugs/036-…` with README,
     EVIDENCE, VERSIONS, UPSTREAM-DRAFT, `patches/`, `scripts/{check.sh,reapply.sh}`,
     a module-level probe (031/032/034) or a live probe (033/034/035/036), and
