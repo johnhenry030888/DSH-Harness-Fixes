@@ -4,12 +4,114 @@
 
 - Objective: Batch project for DeepSeek Harness bug fixes
 - Stack: polyglot | Features: none
-- Phase: **all thirty-nine local fixes applied** to `dsh` 0.1.5-rc.2 (batch 5 —
+- Phase: **all forty-two local fixes applied** to `dsh` 0.1.5-rc.2 (batch 5 —
   016, 020, 026-030 — landed from drill v12's findings plus the orchestrator
   efficiency pass; **batch 6 — 031-036 — landed 2026-09-27** from the
   v16/v17/v19/v21-v26 findings; **batch 7 — 037-038 — landed 2026-09-27**,
-  the two remaining drill-opened items). Drill v13 then closed fix 011: **ten
+  the two remaining drill-opened items; **batch 8 — 039-041 — landed
+  2026-09-28**, closing v27 F1/F2/F3). Drill v13 then closed fix 011: **ten
   clean `standard → orchestrator` switch samples**, no 176-tool mount in any.
+
+## Batch 8 (2026-09-28, fixes 039-041) — the closing batch
+
+What changed this turn, in order:
+
+1. **040 — bundle patch first** (it is the only bundle change in this batch).
+   Copied the installed `dsh-subagent/lib/index.js` to
+   `/tmp/opencode/b40/{pristine,edited}.js`, added the reader-side cue regex +
+   `declaredReadScopePaths`/`declaredPromptScope`, wired
+   `assertInspectionOrdering` to them, added the `droppedIncidental` record
+   field and the named refusal note; stored
+   `patches/dsh-subagent-reader-declared-scope.patch` (160 lines) **before**
+   touching the installed bundle, verified `patch --dry-run`, forward
+   (`pristine+patch == edited`, `cmp` clean) and reverse
+   (`installed-patch == pristine`) round trips plus `node --check`, then
+   applied it to the installed bundle. `reapply.sh` chains 031/032 and is
+   idempotent; a fake-base run (`DSH_AGENT_BASE=/tmp/opencode/b40/fakebase`)
+   produced the byte-identical edited file.
+2. **039 — repo-side reader.** `bugs/039-session-record-reader/scripts/dsh-records.mjs`
+   (~630 lines): glob resolution (`sessions/*/<id>/…`, `session-` prefix
+   accepted), `zstd -dc` decompression with a by-hand frame-header walker as
+   fallback (both read every frame; the frame count is printed), deterministic
+   seq/time ordering, header summary, per-type counts, default interesting
+   rows + `--records all|<list>` (absent explicit type = exit 1 naming types
+   present), `--usage` (each `assistant/message`'s `data.usage` counted once —
+   `data.stream[].chunk.usage` deliberately ignored), `--children` (child ids
+   from catalog/workflow/conflict references, read beside the parent),
+   `--agent`, honest non-zero failures with paths tried. Also
+   `scripts/records-selftest.sh`, which builds a two-frame fixture (session +
+   header in frame 1, the usage record with a duplicated stream usage + a
+   `subagent/box` in frame 2) and asserts the multi-frame read, the
+   single-count rule, the node fallback and the negatives. `check.sh` asserts
+   the executable/syntax/README markers/self-test.
+3. **041 — repo tooling.** `scripts/check-all.sh` now tallies
+   `present`/`missing` per bug folder and ends with
+   `TOTAL: <present> fixes present, <missing> missing`, exit non-zero on any
+   missing. `bugs/041-check-all-total/scripts/check.sh` greps the line's
+   markers and runs a temp copy (real `check-all.sh` + `cp -R` of `bugs/`,
+   every copied `check.sh` stubbed, one forced to `exit 1`) asserting
+   `TOTAL: 41 fixes present, 1 missing` + exit 1, and the all-stub control
+   `TOTAL: 42 fixes present, 0 missing` + exit 0. No recursion: the check
+   never runs the real suite.
+4. **Ancillary repo edits**: bug 031's `check.sh` maximal-refusal marker and
+   both guard probes (031/032) were updated minimally for the new source
+   shape (`${droppedNote}` in the refusal template; the new reader helper in
+   the probe source-block lists). Assertions unchanged; both probes still
+   PASS.
+
+Exact commands and observed results (all run from the repo root):
+
+```
+./scripts/verify.sh                                  -> verify: OK (exit 0)
+./scripts/check-all.sh                               -> exit 0,
+   "TOTAL: 42 fixes present, 0 missing" (82 `fix PRESENT`/`deliverable PRESENT` lines)
+./scripts/audit-secrets.sh                           -> audit-secrets: OK (exit 0)
+shfmt -l $(git ls-files '*.sh')                      -> no output
+shellcheck $(git ls-files '*.sh')                    -> no output
+typos                                                -> no findings
+dsh --profile headless "Reply with exactly the single word: pong"
+                                                     -> pong (exit 0)
+
+node bugs/040-…/scripts/guard-reader-scope-check.mjs            -> PASS (9 pre-fix failures)
+node bugs/031-…/scripts/guard-scope-check.mjs                   -> GUARD-SCOPE-CHECK PASS
+node bugs/032-…/scripts/guard-pair-check.mjs                    -> GUARD-PAIR-CHECK PASS
+bash bugs/037-…/scripts/effort-option-probe.sh                  -> bug-037 live probe: PASS
+bash bugs/039-…/scripts/records-selftest.sh                     -> RECORDS-SELFTEST PASS
+bash bugs/040-…/scripts/reader-scope-probe.sh                   -> READER-SCOPE-PROBE PASS
+```
+
+Live evidence highlights (full raw output in each bug's `EVIDENCE.md`):
+
+- **039** on `session-10f5becd-c2cf-40a9-bc4c-b1888acff7df`: `records 265
+  (multi-frame: 113 frame(s) via zstd -dc)`; header `toolCount=178
+  provider=opencode-go model=deepseek-v4.1-flash reasoningEffort=max`;
+  “parent 164201 / 2023168 / 104246 / 20 calls”; 23-child table with per-child
+  efforts and box hits; 21 of 23 children reproduce `quality/measure.json`
+  byte-for-byte (the other two were live at its snapshot: `beb55c94`
+  `41629/659072/18075 → 51284/873984/25479`, `66fb5c09`
+  `6694/284864/2994 → 15806/319872/4615`); the first 15 parent usages are the
+  exact `parent` block of `measure.json`. Negative: `--session
+  does-not-exist` → exit 1 + both glob patterns tried. Scratch home copy →
+  exit 0. Selftest → `RECORDS-SELFTEST PASS`.
+- **040** live: `READ-ADMITTED-DISJOINT`, the overlap refusal
+  (`…/tmp/dsh040-live/writer.txt` pair, `scopeBasis: declared`),
+  `READ-ADMITTED-AFTER`; the durable records
+  `{admitted, readTrees:["/tmp/dsh040-live/readers"]}` /
+  `{refused, readTrees:["/tmp/dsh040-live/writer.txt"], conflicts:[{writerTree:"/tmp/dsh040-live/writer.txt"}]}` /
+  `{admitted, readTrees:["/tmp/dsh040-live/writer.txt"]}`.
+- **041**: real last line `TOTAL: 42 fixes present, 0 missing` (exit 0);
+  one-broken temp copy `TOTAL: 41 fixes present, 1 missing` (exit 1).
+- **037 re-run** (regression check): all 10 assertions PASS — pinned
+  `low/pinned`, inherited `max`, `extreme` →
+  `UNSUPPORTED_REASONING_EFFORT` with the ladder, `effort: 5` →
+  `INVALID_ARGUMENT`, headers `low` and `max`.
+
+**Restart reminder:** the user must restart `dsh web` to load the 040 bundle
+patch. 039 (repo-side reader) and 041 (repo tooling) need no restart;
+`dsh --profile headless "…pong"` already prints `pong` on the patched bundle.
+
+**Nothing BLOCKED this batch** — all three fixes landed with green checks,
+probes, and pasted evidence.
 - Batch-6 fixes prompt written (2026-09-27): `~/Desktop/opencode-harness-fixes-prompt-6.md` — a
   **mandatory, completion-gated** opencode prompt for the six harness fixes the v16–v26 drills
   justified, each with its drill citation, the exact seam (verified line numbers), the required

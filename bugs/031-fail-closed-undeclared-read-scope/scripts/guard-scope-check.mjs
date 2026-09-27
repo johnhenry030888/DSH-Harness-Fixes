@@ -51,6 +51,14 @@ class FakeSubagentError extends Error {
 // 023+026 stack without this fix) is extracted through its own markers so the
 // probe can demonstrate the behavioural difference both ways.
 const fixed = source.includes("function mostSpecificPaths(");
+// Bug 040 moved the reader harvest behind a cue-precedence wrapper; when that
+// wrapper is present it must ride along in the extracted block.
+const readerScope = source.includes("function declaredReadScopePaths(text) {")
+  ? [
+      sourceBlock("function declaredReadScopePaths(text) {", "\n}"),
+      sourceBlock("function declaredPromptScope(prompt) {", "\n}"),
+    ]
+  : [];
 const block = fixed
   ? [
       sourceBlock("const DECLARED_PATH_ROOTS", "return mostSpecificPaths([...found]);\n}"),
@@ -59,6 +67,7 @@ const block = fixed
       sourceBlock("function declaredWorkOfSession(session) {", "\n}"),
       sourceBlock("function declaredWorkOf(agent) {", "\n}"),
       sourceBlock("function declaredTreesOf(agent) {", "\n}"),
+      ...readerScope,
       sourceBlock("function declaredPromptTrees(prompt) {", "\n}"),
       sourceBlock(
         "function inspectionConflicts(ctx, parent, readOnlyRequested, readTrees) {",

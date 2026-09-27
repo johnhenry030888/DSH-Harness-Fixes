@@ -50,6 +50,14 @@ if (!source.includes("function inspectionConflicts(ctx, parent, readOnlyRequeste
   console.error("FAIL: bug 031 must be applied before this probe can run");
   process.exit(1);
 }
+// Bug 040 moved the reader harvest behind a cue-precedence wrapper; when that
+// wrapper is present it must ride along in the extracted block.
+const readerScope = source.includes("function declaredReadScopePaths(text) {")
+  ? [
+      sourceBlock("function declaredReadScopePaths(text) {", "\n}"),
+      sourceBlock("function declaredPromptScope(prompt) {", "\n}"),
+    ]
+  : [];
 const block = fixed
   ? [
       sourceBlock("const DECLARED_PATH_ROOTS", "return mostSpecificPaths([...found]);\n}"),
@@ -58,6 +66,7 @@ const block = fixed
       sourceBlock("function declaredWorkOfSession(session) {", "\n}"),
       sourceBlock("function declaredWorkOf(agent) {", "\n}"),
       sourceBlock("function declaredTreesOf(agent) {", "\n}"),
+      ...readerScope,
       sourceBlock("function declaredPromptTrees(prompt) {", "\n}"),
       sourceBlock(
         "function inspectionConflicts(ctx, parent, readOnlyRequested, readTrees) {",

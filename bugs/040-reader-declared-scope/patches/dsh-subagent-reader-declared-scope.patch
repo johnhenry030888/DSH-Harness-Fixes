@@ -1,0 +1,160 @@
+--- pristine/subagent/lib/index.js
++++ installed/subagent/lib/index.js
+@@ -1883,6 +1883,17 @@
+  */
+ const DECLARED_PATH_INCIDENTAL = /(?:\bdo not\b|\bdon't\b|\bnever\b|\bavoid\b|\boutside\b|\bnot\b)\s+(?:\w+\s+){0,2}(?:write|writes|writing|create|creates|modify|modifies|edit|edits|touch|touches|add|adds|delete|deletes|remove|removes|change|changes|produce|produces|generate|generates)\b|\bread[- ]only\b|\bsentinel\b|\bscratch\b|\btimestamp\b|\bmarker\b/gi;
+ /**
++ * Explicit read-scope cues. Bug 040 (drill v27 §6 F2): a reader that declared
++ * `/tmp/` as its read scope was harvested as declaring nothing, because the
++ * incidental filter saw the words "scratch"/"sentinel" next to the path and
++ * dropped it, so fail-closed 031 refused the delegation as maximally scoped.
++ * On the reader side an explicit cue outranks the incidental filter — the cue
++ * is the declaration. The writer side (`declaredTreePaths`) keeps bug 032's
++ * sentinel/scratch rule untouched, so a writer that merely mentions `/tmp` and
++ * `/tmp/v26_tstart` still declares no work there.
++ */
++const READ_SCOPE_CUE = /(?:\bread(?:ing)?[-\s]?scope\b|\bonly\s+read(?:s|ing)?\b|\bread[-\s]?only\b|\breads?\s+from\b|\blimited\s+to\b|\brestricted\s+to\b|\bscope\s*[:=]|\bscope\s+(?:is|are|was|were)\b)/gi;
++/**
+  * Keep the most specific declared path per mention chain: an ancestor is
+  * dropped when the same text also declares a strict descendant, because the
+  * descendant is the actual target. Bug 032: the refusal reported a writer's
+@@ -1911,6 +1922,69 @@
+ 	return mostSpecificPaths([...found]);
+ }
+ /**
++ * The read scope one instruction text declares, with the mentions the
++ * incidental filter dropped. Reader-side harvest for bug 040: an explicit
++ * read-scope cue (`read scope:`, `only read`, `scope:`, …) outranks the
++ * incidental filter, so a declaration under a scratch tree (`/tmp/...`)
++ * always counts; without a cue the bug-032 incidental rule still applies and
++ * the dropped paths are returned so the refusal can name them.
++ * @param text - one prompt content block's text.
++ * @returns {trees, dropped}: absolute declared paths and dropped mentions.
++ */
++function declaredReadScopePaths(text) {
++	const cleaned = text.replace(/[a-z][a-z0-9+.-]*:\/\/\S+/gi, " ");
++	let cueIndex = -1;
++	READ_SCOPE_CUE.lastIndex = 0;
++	const cue = READ_SCOPE_CUE.exec(cleaned);
++	if (cue !== null) cueIndex = cue.index;
++	const found = /* @__PURE__ */ new Set();
++	const dropped = [];
++	for (const match of cleaned.matchAll(/(?:^|[\s"'`([{<,;:=])(\/(?:[A-Za-z0-9._@+-]+\/)*[A-Za-z0-9._@+-]+)/g)) {
++		const candidate = match[1].replace(/[.,;:!?]+$/, "");
++		if (candidate.length < 2) continue;
++		const normalized = resolve(candidate);
++		if (normalized === "/") continue;
++		if ([...DECLARED_PATH_ROOTS].some((root) => normalized === root || normalized.startsWith(`${root}${sep}`))) continue;
++		const index = match.index ?? 0;
++		if (cueIndex !== -1 && index >= cueIndex) {
++			found.add(normalized);
++			continue;
++		}
++		const context = cleaned.slice(Math.max(0, index - 80), index + candidate.length);
++		DECLARED_PATH_INCIDENTAL.lastIndex = 0;
++		if (DECLARED_PATH_INCIDENTAL.test(context)) {
++			if (!dropped.includes(normalized)) dropped.push(normalized);
++			continue;
++		}
++		found.add(normalized);
++	}
++	return {
++		trees: mostSpecificPaths([...found]),
++		dropped
++	};
++}
++/**
++ * The declared read scope of one requested delegation prompt across all its
++ * text blocks. Bug 040 keeps the cue precedence of {@link declaredReadScopePaths}
++ * per block and unions the declared paths; dropped mentions accumulate in
++ * first-seen order so the guard can report them verbatim.
++ * @param prompt - the request's content blocks.
++ * @returns {trees, dropped}: absolute read-scope paths and dropped mentions.
++ */
++function declaredPromptScope(prompt) {
++	const trees = /* @__PURE__ */ new Set();
++	const dropped = [];
++	for (const block of prompt ?? []) if (block.type === "text" && typeof block.text === "string") {
++		const scope = declaredReadScopePaths(block.text);
++		for (const path of scope.trees) trees.add(path);
++		for (const path of scope.dropped) if (!dropped.includes(path)) dropped.push(path);
++	}
++	return {
++		trees: mostSpecificPaths([...trees]),
++		dropped
++	};
++}
++/**
+ * The trees one live agent's own instructions declare: the absolute paths in
+ * the child's first delegation prompt, with its workspace only as the fallback
+ * when that prompt declares none. Preferring the declared paths is what keeps
+@@ -1955,14 +2029,14 @@
+ 	return declaredWorkOfSession(agent.session).trees;
+ }
+ /**
+-* The trees one requested delegation's prompt declares, if any.
++* The trees one requested delegation's prompt declares, if any. Bug 040:
++* reader-side harvest with explicit-cue precedence (see
++* {@link declaredPromptScope}); the incidental filter stays writer-side.
+ * @param prompt - the request's content blocks.
+ * @returns absolute path prefixes in first-seen order.
+ */
+ function declaredPromptTrees(prompt) {
+-	const trees = /* @__PURE__ */ new Set();
+-	for (const block of prompt ?? []) if (block.type === "text" && typeof block.text === "string") for (const path of declaredTreePaths(block.text)) trees.add(path);
+-	return [...trees];
++	return declaredPromptScope(prompt).trees;
+ }
+ /**
+ * Live write-capable direct children of `parent` whose declared work overlaps
+@@ -1973,8 +2047,10 @@
+ * declares none is treated as MAXIMAL (bug 031: it is refused while any
+ * write-capable direct child is live, because the omission was otherwise a
+ * bypass). A declared scope is tested only against the writer's declared work
+-* (bug 032: the same harvester on both sides, a mere mention is not a declared
+-* tree, and the most specific path survives). The writer side falls back to
++* (bug 032: a mere mention in the writer's prompt is not a declared tree, and
++* the most specific path survives; bug 040: the reader's own harvest lets an
++* explicit scope cue outrank the incidental filter, so a genuine declaration
++* under a scratch tree is never erased). The writer side falls back to
+ * its own workspace when its prompt declares none, and "Write-capable" is read from the session's resolved
+ * sandbox policy — the same `sandbox/mode` fold the enforcement dialects
+ * consume — because that is the one durable property that distinguishes a
+@@ -2042,6 +2118,9 @@
+ * not the session cwd) so the caller can wait for the settlement notice (or
+ * interrupt_agent it) and retry the exact same read-only call unchanged. A
+ * read-only lane whose declared paths overlap no live writer is admitted.
++* Bug 040: path mentions the reader-side harvest dropped as incidental are
++* named in the maximal refusal and carried on the durable record
++* (`droppedIncidental`), so a filtered declaration is never silent.
+ * @param ctx - context carrying the live Agent registry and sandbox policy.
+ * @param parent - the delegating parent starting the read-only child.
+ * @param readOnlyRequested - the requested child's read-only flag.
+@@ -2050,7 +2129,8 @@
+ */
+ function assertInspectionOrdering(ctx, parent, readOnlyRequested, prompt) {
+ 	if (readOnlyRequested !== true) return;
+-	const readTrees = declaredPromptTrees(prompt);
++	const scope = declaredPromptScope(prompt);
++	const readTrees = scope.trees;
+ 	const declared = readTrees.length > 0;
+ 	const scopeBasis = declared ? "declared" : "maximal";
+ 	const conflicts = inspectionConflicts(ctx, parent, readOnlyRequested, readTrees);
+@@ -2059,6 +2139,7 @@
+ 			scopeBasis,
+ 			outcome: conflicts.length === 0 ? "admitted" : "refused",
+ 			readTrees,
++			...scope.dropped.length === 0 ? {} : { droppedIncidental: scope.dropped },
+ 			conflicts: conflicts.map((conflict) => ({
+ 				agentId: conflict.agent.id,
+ 				...conflict.readerTree === void 0 ? {} : { readerTree: conflict.readerTree },
+@@ -2071,7 +2152,8 @@
+ 	}
+ 	if (conflicts.length === 0) return;
+ 	const named = conflicts.map((conflict) => `"${conflict.agent.id}"`).join(", ");
+-	if (scopeBasis === "maximal") throw new SubagentError(`subagent: refused a read-only delegation that declared no read scope: it is treated as covering the whole workspace, and write-capable ${conflicts.length === 1 ? "agent" : "agents"} ${named} ${conflicts.length === 1 ? "is" : "are"} still running (scopeBasis: maximal, writerBasis: ${conflicts[0].writerBasis}). A read-only review must not overlap a lane that may still mutate what it reads. Wait for the child's settlement notice, or interrupt_agent it, then retry the same read-only call unchanged; a read-only lane whose declared paths do not overlap any live writer's is admitted, and declaring its read scope narrows this rule to those paths.`, "INSPECTION_CONFLICT");
++	const droppedNote = scope.dropped.length === 0 ? "" : ` (${scope.dropped.length} path mention${scope.dropped.length === 1 ? " was" : "s were"} ignored as incidental/scratch: ${scope.dropped.map((path) => `"${path}"`).join(", ")})`;
++	if (scopeBasis === "maximal") throw new SubagentError(`subagent: refused a read-only delegation that declared no read scope${droppedNote}: it is treated as covering the whole workspace, and write-capable ${conflicts.length === 1 ? "agent" : "agents"} ${named} ${conflicts.length === 1 ? "is" : "are"} still running (scopeBasis: maximal, writerBasis: ${conflicts[0].writerBasis}). A read-only review must not overlap a lane that may still mutate what it reads. Wait for the child's settlement notice, or interrupt_agent it, then retry the same read-only call unchanged; a read-only lane whose declared paths do not overlap any live writer's is admitted, and declaring its read scope narrows this rule to those paths.`, "INSPECTION_CONFLICT");
+ 	const first = conflicts[0];
+ 	const target = first.readerTree === void 0 ? "(the parent session workspace)" : `"${first.readerTree}"`;
+ 	const writerTree = first.writerTree === void 0 ? "(its workspace)" : `"${first.writerTree}"`;

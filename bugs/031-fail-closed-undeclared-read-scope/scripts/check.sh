@@ -18,7 +18,7 @@ marker() {
 # Undeclared read scope is maximal, not a cwd fallback.
 marker 'const declared = readTrees !== void 0 && readTrees.length > 0;' "$SUB"
 marker 'const readerTrees = declared ? readTrees : parent.session.header.cwd === void 0 ? [] : [resolve(parent.session.header.cwd)];' "$SUB"
-marker 'refused a read-only delegation that declared no read scope: it is treated as covering the whole workspace' "$SUB"
+marker 'refused a read-only delegation that declared no read scope${droppedNote}: it is treated as covering the whole workspace' "$SUB"
 marker 'const scopeBasis = declared ? "declared" : "maximal";' "$SUB"
 marker 'parent.session.append("subagent/inspection-scope", {' "$SUB"
 # The durable event types the guard and its dependents append.

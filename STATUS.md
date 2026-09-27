@@ -1,6 +1,6 @@
 # Status
 
-All thirty-nine local fixes are applied to the `dsh` 0.1.5-rc.2 bundle (bugs
+All forty-two local fixes are applied to the `dsh` 0.1.5-rc.2 bundle (bugs
 001-004 re-applied 2026-09-20; bug 005 added 2026-09-25; bugs 006-010 added
 2026-09-25 from the orchestrator drill v3/v4 findings; bugs 011-014, 018, 019
 added 2026-09-26 from drill v6/v7/v8 findings; bugs 014b, 017, 021, 022 added
@@ -15,7 +15,39 @@ header honesty, and the `list_agents` declared tree; **bugs 037-038 added
 2026-09-27 — the two remaining drill-opened items** (the workflow
 `agent(prompt, {effort})` pin, and the documented offline route list), with
 patches generated against pristine published sources and verified by
-pristine->reapply round-trips.
+pristine->reapply round-trips; **bugs 039-041 added 2026-09-28 — the last two
+drill-opened items plus the repo tooling that misled two drills**: the
+supported offline record reader (v27 §6 F3), the reader-side declared-scope
+precedence (v27 §6 F2), and `check-all.sh`'s one authoritative total
+(v27 §0/§6 F1). `check-all.sh` now exits 0 with **42 fixes present, 0
+missing** on its own TOTAL line.
+
+Batch note (2026-09-28, fixes 039-041): all three landed with green `check.sh`
+and idempotent `reapply.sh`; 039 and 041 are repo-side deliverables (documented
+empty `patches/`), 040 is one `dsh-subagent` patch with a byte-exact
+forward/reverse round trip against the 39-fix baseline. **039**: the reader
+resolved the real v27 drill session (113 zstd frames / 265 records), printed
+the header summary `toolCount=178 provider=opencode-go model=deepseek-v4.1-flash
+reasoningEffort=max`, the 23-child table (efforts `low/high/medium/max/default`,
+box hits `45/170/240/160/200 s`), and usage totals that reproduce
+`quality/measure.json` exactly for 21 of 23 children (the other two were still
+live at its snapshot and grew), with the negative case (`--session
+does-not-exist`, exit 1 + paths tried) and a scratch-home copy pasted in
+`EVIDENCE.md`; the two-frame self-test proves the multi-frame read, the
+single-count usage rule and the node frame-loop fallback. **040**: module probe
+9 failures pre-fix → all green post-fix (v27 F2 prompt admitted, `/tmp` pair
+refused naming the pair, v26 A3 writer still cwd-fallback, filtered declaration
+named via `droppedIncidental`), plus a live scratch-home run where a disjoint
+`/tmp` declaration was admitted while a writer was live, the overlapping
+declaration was refused naming the pair (`scopeBasis: declared`), and the same
+call was admitted after settlement — the durable `subagent/inspection-scope`
+records read back through the 039 reader; 031/032/037 probes re-run green.
+**041**: the real suite ends `TOTAL: 42 fixes present, 0 missing` (exit 0) and
+a temp copy with one `check.sh` forced to `exit 1` reads `TOTAL: 41 fixes
+present, 1 missing` (exit 1). `verify.sh` prints `verify: OK`,
+`audit-secrets.sh` exits 0, `shfmt -l`/`shellcheck`/`typos` are clean, and
+`dsh --profile headless "…pong"` prints `pong`. **The user must restart
+`dsh web` to load the patched bundle** (039/041 need no restart; 040 does).
 
 Batch note (2026-09-27, fixes 037-038): both landed with green `check.sh`,
 idempotent `reapply.sh`, a byte-exact six-file patch round trip for 037
@@ -386,6 +418,9 @@ carries the outstanding live probes for 016, 020, 027, 028, 029 and 030.
 | [036](bugs/036-list-agents-declared-tree/README.md) | `list_agents` renders the session cwd instead of the delegation's declared tree; settled rows carry no tree/policy (v16 F2, v17 §5, v20 F2, v21 §5 item 4, v22 §5 item 4, v26 §5 item 4) | APPLIED to bundle 0.1.5-rc.2 (service exposes the guard's `declaredWorkOf`; rows render `[writes in <declared path> (declared)]` + `trees`/`treeBasis`, settled-row policy absence documented; live probe shows the declared drill subpath with `checkedAt`/`filePolicy`) | NOT-FILED |
 | [037](bugs/037-workflow-agent-effort-option/README.md) | `agent()` accepts no `effort`, so a workflow stage cannot be pinned and silently inherits the lead's effort (v16 F5, v17 §2; v19 §5 item 2/v25 §5 item 2 unmatched pair; v21 §7 R1 pinned merge leaves the workflow) | APPLIED to bundle 0.1.5-rc.2 (`effort` accepted as a non-empty string and forwarded as the child's pinned `agentOptions.reasoningEffort`; `requestedEffort` recorded beside 035's `resolvedEffort`/`effortSource: "pinned"`; unadvertised effort fails loudly with the platform's `UNSUPPORTED_REASONING_EFFORT`; `isolation`/`agentType` stay deferred; live probe: `low`/pinned, inherited `max`, `extreme` rejected in 22 ms with the ladder, `effort: 5` → `INVALID_ARGUMENT`) | NOT-FILED |
 | [038](bugs/038-offline-route-enumeration/README.md) | no documented, offline way to enumerate the served (policy-filtered) routes — `/v1/models` 404, `/api/routes` 401 (v25 §0, v26 §0/§7 F-route: header/effort table NOT MEASURED) | APPLIED (helper + documented path; no harness code change — auth untouched). `dsh-local-session.mjs --routes` prints policy ∩ catalogue (`allowedModels` ∩ `storages/llm-pi-ai/catalog/*.json`) with a `basis:` line, `--json`, and honest `UNKNOWN` + non-zero when a source is missing; README states the in-session `list_subagent_models()` authority and the `/api` cookie / unmounted `/v1/models` facts | NOT-FILED |
+| [039](bugs/039-session-record-reader/README.md) | no supported offline reader for session records/token usage: every record-level acceptance is unreadable and the hand-rolled `zstd -dc \| python3` workaround produced wrong parses twice (v23 §5 steer split lost; v26 §3/§6 header/effort table + share lost; v27 §3/§4/§6 F3 three acceptance rows + the share bar lost) | APPLIED (repo-side `scripts/dsh-records.mjs`, no bundle patch and no new tool). Globs `$DSH_HOME/sessions/*/<sid>/session.v3.jsonl.zstd`, decompresses every frame (`zstd -dc` + node frame-loop fallback), prints header summary/counts/raw rows (`subagent/box` `{boxSeconds,elapsedSeconds,hit}`, steer `deliveredAt`→`boundaryAt`, workflow `requestedEffort`/`resolvedEffort`/`effortSource`), `--usage` per-agent + drill-wide totals counting each `assistant/message` once (the `data.stream[].chunk.usage` duplicate trap closed), `--children` per-child table, `--agent`, honest non-zero absences; verified on the real v27 session (113 frames/265 records; 21/23 children match `measure.json` byte-for-byte) and the two-frame self-test | NOT-FILED |
+| [040](bugs/040-reader-declared-scope/README.md) | a reader that declares `/tmp/` as its read scope is harvested as `declared no read scope` (scopeBasis maximal) because 032's incidental filter runs on both sides, so fail-closed 031 refuses the delegation (v27 §6 F2) | APPLIED to bundle 0.1.5-rc.2 (reader-side `READ_SCOPE_CUE` precedence in `declaredReadScopePaths`/`declaredPromptScope`; scratch roots declarable; dropped mentions named in the maximal refusal + `droppedIncidental` on the record; writer side and 031/032 semantics unchanged). Module probe 9 failures pre-fix → PASS; live: disjoint `/tmp` declaration admitted while a writer was live, overlap refused naming the pair with `scopeBasis: declared`, same call admitted after settlement; 031/032 probes still green | NOT-FILED |
+| [041](bugs/041-check-all-total/README.md) | `check-all.sh` prints no count, so drills reconcile "N fixes" against heterogeneous id/assertion lines by hand (v27 §0/§6 F1: 39 predicted vs 37 ids vs 77 assertion lines) | APPLIED (repo tooling). Every bug folder tallies `present`/`missing` once and the tool ends with `TOTAL: <present> fixes present, <missing> missing`, exiting non-zero when anything is missing; the temp-copy probe forces one check to exit 1 and asserts `TOTAL: 41 fixes present, 1 missing` + exit 1 without touching the real suite | NOT-FILED |
 
 ## Legend
 
