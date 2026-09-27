@@ -1,0 +1,43 @@
+--- pristine/llm/lib/index.js
++++ installed/llm/lib/index.js
+@@ -2184,14 +2184,21 @@
+ 			const info = await this.resolveModelInfoFor(registration, config.model, signal);
+ 			return this.resolveCallWithInfo(config, info);
+ 		}
+-		/** Validate request controls against one already-bound exact model result. */
++		/**
++		* Validate request controls against one already-bound exact model result.
++		* A reasoning-capable model with no caller-requested level and no adapter
++		* default materializes the explicit `"default"` sentinel, so the logged
++		* request header always carries a `reasoningEffort` key for such a model
++		* (bug 035: longcat-2.0's header had no key at all, which made an
++		* effort-matched pair unfalsifiable).
++		*/
+ 		resolveCallWithInfo(config, info) {
+ 			const defaulted = config.maxTokens === void 0 && info.defaultMaxTokens !== void 0 ? {
+ 				...config,
+ 				maxTokens: info.defaultMaxTokens
+ 			} : config;
+ 			const reasoning = info.reasoning;
+-			const requested = defaulted.reasoningEffort;
++			const requested = defaulted.reasoningEffort === "default" ? void 0 : defaulted.reasoningEffort;
+ 			let resolvedConfig = defaulted;
+ 			if (reasoning === void 0) {
+ 				if (requested !== void 0) throw new LlmError(`provider "${config.provider}" model "${config.model}" does not support reasoning effort "${requested}" — supported: ${describeReasoningEfforts(reasoning)}`, "UNSUPPORTED_REASONING_EFFORT");
+@@ -2199,11 +2206,14 @@
+ 				const effective = requested ?? reasoning.defaultEffort;
+ 				if (effective !== void 0) {
+ 					if (!reasoning.efforts.some((effort) => effort.id === effective)) throw new LlmError(`provider "${config.provider}" model "${config.model}" does not support reasoning effort "${effective}" — supported: ${describeReasoningEfforts(reasoning)}`, "UNSUPPORTED_REASONING_EFFORT");
+-					if (requested !== effective) resolvedConfig = {
++					if (defaulted.reasoningEffort !== effective) resolvedConfig = {
+ 						...defaulted,
+ 						reasoningEffort: effective
+ 					};
+-				}
++				} else if (defaulted.reasoningEffort !== "default") resolvedConfig = {
++					...defaulted,
++					reasoningEffort: "default"
++				};
+ 			}
+ 			return {
+ 				config: resolvedConfig,

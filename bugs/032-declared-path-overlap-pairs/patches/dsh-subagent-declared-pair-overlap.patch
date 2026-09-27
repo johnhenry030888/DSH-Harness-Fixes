@@ -1,0 +1,58 @@
+--- pristine/subagent/lib/index.js
++++ installed/subagent/lib/index.js
+@@ -1788,6 +1788,27 @@
+ 	"/Applications",
+ 	"/Windows"
+ ]);
++/**
++ * Cues that mark one path mention as incidental rather than declared work:
++ * a prohibition verb in front of it, a read-only framing, or a sentinel /
++ * scratch / timestamp / marker purpose. Bug 032: a writer prompt that merely
++ * named `/tmp/v26_tstart` (a timestamp sentinel it wrote once) and `/tmp` was
++ * reported as declaring work there, so an unrelated review on `/tmp` was
++ * refused; the negative and sentinel mentions are not a declared tree.
++ */
++const DECLARED_PATH_INCIDENTAL = /(?:\bdo not\b|\bdon't\b|\bnever\b|\bavoid\b|\boutside\b|\bnot\b)\s+(?:\w+\s+){0,2}(?:write|writes|writing|create|creates|modify|modifies|edit|edits|touch|touches|add|adds|delete|deletes|remove|removes|change|changes|produce|produces|generate|generates)\b|\bread[- ]only\b|\bsentinel\b|\bscratch\b|\btimestamp\b|\bmarker\b/gi;
++/**
++ * Keep the most specific declared path per mention chain: an ancestor is
++ * dropped when the same text also declares a strict descendant, because the
++ * descendant is the actual target. Bug 032: the refusal reported a writer's
++ * declared work as the drill ROOT (a common ancestor) although the genuine
++ * declared targets were its subpaths.
++ * @param paths - normalized declared paths in first-seen order.
++ * @returns the paths that are not strict ancestors of another declared path.
++ */
++function mostSpecificPaths(paths) {
++	return paths.filter((path) => !paths.some((other) => other !== path && other.startsWith(`${path}${sep}`)));
++}
+ function declaredTreePaths(text) {
+ 	const cleaned = text.replace(/[a-z][a-z0-9+.-]*:\/\/\S+/gi, " ");
+ 	const found = /* @__PURE__ */ new Set();
+@@ -1797,9 +1818,12 @@
+ 		const normalized = resolve(candidate);
+ 		if (normalized === "/") continue;
+ 		if ([...DECLARED_PATH_ROOTS].some((root) => normalized === root || normalized.startsWith(`${root}${sep}`))) continue;
++		const context = cleaned.slice(Math.max(0, (match.index ?? 0) - 80), (match.index ?? 0) + candidate.length);
++		DECLARED_PATH_INCIDENTAL.lastIndex = 0;
++		if (DECLARED_PATH_INCIDENTAL.test(context)) continue;
+ 		found.add(normalized);
+ 	}
+-	return [...found];
++	return mostSpecificPaths([...found]);
+ }
+ /**
+ * The trees one live agent's own instructions declare: the absolute paths in
+@@ -1863,9 +1887,10 @@
+ * declares — the tree the lane will actually read — and a delegation that
+ * declares none is treated as MAXIMAL (bug 031: it is refused while any
+ * write-capable direct child is live, because the omission was otherwise a
+-* bypass), while a declared scope keeps the shared declared-path comparison.
+-* The writer side falls back to its own workspace when its prompt declares
+-* none, and "Write-capable" is read from the session's resolved
++* bypass). A declared scope is tested only against the writer's declared work
++* (bug 032: the same harvester on both sides, a mere mention is not a declared
++* tree, and the most specific path survives). The writer side falls back to
++* its own workspace when its prompt declares none, and "Write-capable" is read from the session's resolved
+ * sandbox policy — the same `sandbox/mode` fold the enforcement dialects
+ * consume — because that is the one durable property that distinguishes a
+ * lane allowed to mutate files from bug 019's read-only lanes; the

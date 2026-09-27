@@ -1,0 +1,22 @@
+--- pristine/subagent/lib/index.js
++++ installed/subagent/lib/index.js
+@@ -3386,6 +3386,19 @@
+ 			return listDescendants(this.ctx, rootSessionId, signal);
+ 		}
+ 		/**
++		* The declared work of one live child, shared with the ordering guard:
++		* the absolute paths its own delegation prompt declares, with the basis
++		* that produced them (`declared`, `cwd` fallback, or `unknown`). Bug 036
++		* exposes the guard's own harvester so `list_agents` renders the declared
++		* tree instead of the session cwd, and the two consumers can never
++		* disagree about what a lane declared.
++		* @param agent - the live agent whose declared work is read.
++		* @returns declared paths in first-seen order plus the basis label.
++		*/
++		declaredWorkOf(agent) {
++			return declaredWorkOf(agent);
++		}
++		/**
+ 		* Remote face of {@link listChildren} for one browser: the durable listing
+ 		* plus live Agent activity and the delivery-time parent availability hint.
+ 		* Parent availability is a hint; {@link prompt} performs the authoritative

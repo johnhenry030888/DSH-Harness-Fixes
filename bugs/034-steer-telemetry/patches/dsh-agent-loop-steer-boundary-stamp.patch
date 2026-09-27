@@ -1,0 +1,40 @@
+--- pristine/dsh-agent-loop/lib/index.js
++++ installed/dsh-agent-loop/lib/index.js
+@@ -61,6 +61,25 @@
+ 	stateVersion: 1
+ };
+ /**
++* One durable step-boundary stamp for a steer the child just adopted (bug
++* 034: the boundary→reply half of the steer split was negative or
++* unmeasurable). The message carries the delivery stamp the service recorded;
++* this stamp is taken when the inbox claim consumes the message at a step
++* boundary, so `deliveredAt <= boundaryAt <= reply` is monotone.
++* @param message - the claimed user message.
++* @param boundaryAt - ISO 8601 boundary stamp with millisecond precision.
++* @param boundarySeq - the appended record's own session seq.
++* @returns the durable `subagent/steer-boundary` payload.
++*/
++function steerBoundaryRecord(message, boundaryAt, boundarySeq) {
++	return {
++		messageId: message.id,
++		...message.source?.deliveredAt === void 0 ? {} : { deliveredAt: message.source.deliveredAt },
++		boundaryAt,
++		boundarySeq
++	};
++}
++/**
+ * Driver-owned durable Inbox implementation used by ReactLoopAgent and focused
+ * provider tests.
+ * @param projections - registry that owns the standard Inbox projection.
+@@ -108,6 +127,11 @@
+ 			message,
+ 			turn
+ 		});
++		for (const message of claimed) if (message.source?.steer === true) try {
++			this.session.append("subagent/steer-boundary", steerBoundaryRecord(message, new Date().toISOString(), this.session.seq));
++		} catch {
++			/* the boundary stamp is diagnostic; it must never break the step */
++		}
+ 		return claimed;
+ 	}
+ 	/**

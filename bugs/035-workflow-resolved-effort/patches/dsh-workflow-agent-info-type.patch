@@ -1,0 +1,22 @@
+--- pristine/workflow/lib/types/types.d.ts
++++ installed/workflow/lib/types/types.d.ts
+@@ -97,6 +97,19 @@
+     requestedProvider?: string;
+     /** The model the call asked for (`opts.model`), when one was named. */
+     requestedModel?: string;
++    /**
++     * The reasoning effort the child actually resolved to, or `null` when it
++     * could not be resolved; the run record never omits the field (bug 035).
++     * The `"default"` sentinel means the model supports reasoning but no
++     * concrete level was pinned or defaulted.
++     */
++    resolvedEffort?: string | null;
++    /**
++     * Where {@link resolvedEffort} came from: `pinned` (the call/row named
++     * it), `inherited` (the parent's route carried it unchanged), `default`
++     * (the adapter's model default), or `unknown` (not resolvable).
++     */
++    effortSource?: 'pinned' | 'inherited' | 'default' | 'unknown';
+ }
+ /** How one `agent()` call settled: clean result, child failure (script branch), or run cancellation. */
+ export type WorkflowAgentOutcome = 'completed' | 'failed' | 'cancelled';

@@ -1,0 +1,81 @@
+--- pristine/tool-subagent/lib/index.js
++++ installed/tool-subagent/lib/index.js
+@@ -375,7 +375,8 @@
+ 		deny: z.array(z.string()).default(void 0)
+ 	}).default(void 0),
+ 	readOnly: z.boolean().default(false),
+-	maxDepth: z.union([z.natural().max(Number.MAX_SAFE_INTEGER), z.const("provider-managed")]).default(3)
++	maxDepth: z.union([z.natural().max(Number.MAX_SAFE_INTEGER), z.const("provider-managed")]).default(3),
++	boxSeconds: z.natural().min(5)
+ });
+ /** Render text blocks from the canonical JSON block array without trusting arbitrary values. */
+ function outputValueText(values) {
+@@ -417,11 +418,27 @@
+ 	return `${error}${diagnostic}${text.length === 0 ? "" : `\nPartial output before the run ended:\n${text}`}`;
+ }
+ /**
++* Render one run's runtime-enforced box hit as the tool's result text: the
++* elapsed seconds, the child id, and the partial output it produced before the
++* interruption (bug 033). Returns undefined when the run hit no box.
++* @param run - the foreground run whose box state is read.
++* @param result - the run's terminal result.
++* @returns the box-hit message, or undefined.
++*/
++function boxStopError(run, result) {
++	const box = run.box;
++	if (box?.hit !== true) return void 0;
++	const text = result.output.filter((block) => block.type === "text").map((block) => block.text).join("");
++	return `agent "${String(run.id)}" hit its ${String(box.boxSeconds)} s box and was interrupted after ${String(box.elapsedSeconds)} s; partial output follows:\n${text.length === 0 ? "(the child produced no text before the box)" : text}`;
++}
++/**
+ * Collect and release one foreground run without letting disposal replace an
+ * independent result failure.
+ */
+ async function settleForegroundRun(run) {
+ 	const [execution] = await Promise.allSettled([run.result.then((result) => {
++		const boxError = boxStopError(run, result);
++		if (boxError !== void 0) throw new Error(boxError);
+ 		const error = stopReasonError(result);
+ 		if (error !== void 0) throw new Error(withDiagnosticAndPartialText(error, result));
+ 		return {
+@@ -514,7 +531,7 @@
+ 				subagentProvider,
+ 				disposeTool: runtimeCtx.tools.register(defineTool({
+ 					name: toolName,
+-					description: wording.description + (backgroundEnabled ? continuable ? " This tool runs in the background by default, immediately returns a durable subagent id, and keeps the child conversation available for later turns. When that run settles, the runtime sends the parent a notice containing its outcome and any final assistant message; `send_message` steers the child's nearest step while it is running and starts a turn while it is idle. Set `run_in_background: false` only when your next action depends on receiving the result." : " This call waits for the result by default. Set `run_in_background: true` to return a job id; collect with `job_output` and stop with `job_kill`." : " This call waits for the subagent and returns its result.") + choiceDescription,
++					description: wording.description + (backgroundEnabled ? continuable ? " This tool runs in the background by default, immediately returns a durable subagent id, and keeps the child conversation available for later turns. When that run settles, the runtime sends the parent a notice containing its outcome and any final assistant message; `send_message` steers the child's nearest step while it is running and starts a turn while it is idle. Set `run_in_background: false` only when your next action depends on receiving the result." : " This call waits for the result by default. Set `run_in_background: true` to return a job id; collect with `job_output` and stop with `job_kill`." : " This call waits for the subagent and returns its result.") + choiceDescription + " A `box_seconds` deadline (or this row's configured default) is enforced by the runtime: at expiry the child is interrupted like `interrupt_agent` and you receive its partial output, and a background child's settlement notice says the stop was a box hit.",
+ 					parameters: {
+ 						description: {
+ 							type: "string",
+@@ -543,7 +560,11 @@
+ 						...backgroundEnabled ? { run_in_background: {
+ 							type: "boolean",
+ 							description: continuable ? "Whether to run in the background and return a durable subagent id immediately. Defaults to true. Set false to wait for the result when your next action depends on it." : "Whether to run as a background job and return its id. Defaults to false; collect with job_output or stop with job_kill."
+-						} } : {}
++						} } : {},
++						box_seconds: {
++							type: "number",
++							description: "Optional runtime-enforced deadline in whole seconds (>= 5) for this one delegation. At expiry the runtime interrupts the child the way interrupt_agent does and returns its partial output; a background child's settlement notice says the stop was a box hit. Omit to use this row's configured boxSeconds, if any."
++						}
+ 					},
+ 					output: {
+ 						schema: { oneOf: [
+@@ -624,6 +645,8 @@
+ 						}
+ 						exec.signal.throwIfAborted();
+ 						const maxDepth = typeof config.maxDepth === "number" ? config.maxDepth : void 0;
++						const boxSeconds = args.box_seconds ?? config.boxSeconds;
++						if (boxSeconds !== void 0 && (!Number.isInteger(boxSeconds) || boxSeconds < 5)) throw new Error(`box_seconds must be an integer >= 5 (got ${String(boxSeconds)})`);
+ 						const request = {
+ 							label: args.description,
+ 							prompt: [{
+@@ -635,7 +658,8 @@
+ 							...config.persona !== void 0 ? { persona: config.persona } : {},
+ 							...config.toolFilter !== void 0 ? { toolFilter: config.toolFilter } : {},
+ 							...config.readOnly === true ? { readOnly: true } : {},
+-							...maxDepth !== void 0 ? { maxDepth } : {}
++							...maxDepth !== void 0 ? { maxDepth } : {},
++							...boxSeconds === void 0 ? {} : { boxSeconds }
+ 						};
+ 						if (resolveDelegationRun(args, {
+ 							backgroundEnabled,

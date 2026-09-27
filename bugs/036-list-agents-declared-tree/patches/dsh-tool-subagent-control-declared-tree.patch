@@ -1,0 +1,122 @@
+--- pristine/tool-subagent-control/lib/types/list-agents.js
++++ installed/tool-subagent-control/lib/types/list-agents.js
+@@ -36,13 +36,15 @@
+  * caller tell "no live agent at 12:01:03" from a later state instead of
+  * treating one sample as a durable outcome.
+  * @param agents - live Agent registry.
++ * @param subagents - the subagent service whose guard harvester is shared (bug 036).
++ * @param sessions - the live Session store, used for a settled child's durable log.
+  * @param sandboxPolicy - the sandbox-policy service, when this composition mounts one.
+  * @param entry - the durable listing row.
+  * @param position - optional descendant position annotation.
+  * @param checkedAt - ISO timestamp of this listing's registry sample.
+  * @returns the model-facing entry, or undefined for a one-shot child.
+  */
+-function project(agents, sandboxPolicy, entry, position, checkedAt) {
++function project(agents, subagents, sessions, sandboxPolicy, entry, position, checkedAt) {
+     const at = position === undefined ? {} : { parent: position.parentId, depth: position.depth };
+     if (entry.kind === 'diagnostic') {
+         return { kind: 'diagnostic', id: entry.id, reason: entry.reason, ...at };
+@@ -54,12 +56,25 @@
+     // The file policy is sampled from the same resolved `sandbox/mode` fold
+     // the enforcement dialects consume, so `writes` means this live child can
+     // still mutate files and `read-only` means it cannot. Together with the
+-    // child's tree it makes the inspection state the ordering rule needs
+-    // observable before a review is dispatched.
++    // child's declared tree it makes the inspection state the ordering rule
++    // needs observable before a review is dispatched. A settled row has no
++    // live agent, so it carries no `filePolicy`; that absence is predictable
++    // and stated in this tool's description.
+     const live = agents.get(entry.id);
+     const policy = live === undefined || sandboxPolicy === undefined ? {} : {
+         filePolicy: sandboxPolicy.overrideOf(live.session) === 'read-only' ? 'read-only' : 'writes',
+-        ...live.session.header.cwd === undefined ? {} : { tree: live.session.header.cwd },
++    };
++    // The tree is the child's DECLARED work — the same harvester the ordering
++    // guard uses — not its session cwd (bug 036, drills v16/v17/v20-v22/v26):
++    // a lane told to write a drill subpath rendered the session cwd instead.
++    // The basis label tells a caller which rule produced the path; for a
++    // settled child the durable session supplies the prompt when one is loaded.
++    const session = live === undefined ? sessions?.get(entry.id) : live.session;
++    const declared = session === undefined ? undefined : subagents.declaredWorkOf({ session });
++    const treeFields = declared === undefined || declared.trees.length === 0 ? {} : {
++        tree: declared.trees[0],
++        trees: [...declared.trees],
++        treeBasis: declared.basis,
+     };
+     return {
+         kind: 'child',
+@@ -68,6 +83,7 @@
+         status: statusOf(agents, entry.id),
+         checkedAt,
+         ...policy,
++        ...treeFields,
+         ...at,
+     };
+ }
+@@ -86,9 +102,13 @@
+             + 'but between turns (it may be waiting on agents it started), and ready means no live agent remains — '
+             + 'the conversation is in storage, resumable rather than terminal and not a result waiting to be '
+             + 'collected. Each live row also samples the child\'s file policy — `read-only` cannot modify files, '
+-            + '`writes` can — and its working tree, so the verify→review order is checkable before a review is '
+-            + 'dispatched: a read-only delegation is refused while a live `writes` child is still running against '
+-            + 'the same tree (wait for its settlement notice or interrupt_agent it, then retry). '
++            + '`writes` can — and its DECLARED tree: the absolute paths its own delegation prompt declares, with '
++            + '`treeBasis` saying how the path was derived (`declared` from the prompt, `cwd` when the prompt '
++            + 'declares none, `unknown` when neither is readable), so the verify→review order is checkable before '
++            + 'a review is dispatched: a read-only delegation is refused while a live `writes` child is still '
++            + 'running against the same declared tree (wait for its settlement notice or interrupt_agent it, then '
++            + 'retry). A settled row (no live agent) carries no `filePolicy` and, when the durable session is not '
++            + 'loaded, no tree either — that absence is predictable, not a failed read. '
+             + 'Treat the row as last-known-as-of `checkedAt`, not as a durable outcome; a settlement '
+             + 'notice is the authoritative completion signal. A `send_message` steers a running child at its nearest '
+             + 'step boundary or starts a turn for an idle or ready child, and a direct child remains a `send_message` '
+@@ -121,6 +141,8 @@
+                                 checkedAt: { type: 'string', required: true },
+                                 filePolicy: { type: 'string', enum: ['read-only', 'writes'] },
+                                 tree: { type: 'string' },
++                                trees: { type: 'array', items: { type: 'string' } },
++                                treeBasis: { type: 'string', enum: ['declared', 'cwd', 'unknown'] },
+                                 parent: { type: 'string' },
+                                 depth: { type: 'number' },
+                             },
+@@ -152,9 +174,12 @@
+                                 const at = request.scope === 'descendants'
+                                     ? ` parent=${String(entry.parent)} depth=${String(entry.depth)}`
+                                     : '';
+-                                const policy = entry.kind === 'child' && entry.filePolicy !== undefined
+-                                    ? ` [${entry.filePolicy}${entry.tree === undefined ? '' : ` in ${entry.tree}`}]`
++                                const treeSuffix = entry.kind === 'child' && entry.tree !== undefined
++                                    ? ` in ${entry.tree}${entry.treeBasis === undefined ? '' : ` (${entry.treeBasis})`}`
+                                     : '';
++                                const policy = entry.kind === 'child' && entry.filePolicy !== undefined
++                                    ? ` [${entry.filePolicy}${treeSuffix}]`
++                                    : treeSuffix;
+                                 return entry.kind === 'child'
+                                     ? `${entry.id} [${entry.status} as of ${entry.checkedAt}]${at} — ${entry.label}${policy}`
+                                     : `${entry.id} [diagnostic: ${entry.reason}]${at}`;
+@@ -170,6 +195,7 @@
+             }
+             const request = resolveListAgentsRequest(args);
+             const sandboxPolicy = ctx.get('sandboxPolicy');
++            const sessions = ctx.get('sessions');
+             // The registry drains started tool bodies, so the scan must observe the
+             // call's signal rather than finish a slow catalog after cancellation.
+             switch (request.scope) {
+@@ -177,14 +203,14 @@
+                     const entries = await ctx.subagents.listChildren(parent.id, exec.signal);
+                     const checkedAt = new Date().toISOString();
+                     return entries
+-                        .map(entry => project(ctx.agents, sandboxPolicy, entry, undefined, checkedAt))
++                        .map(entry => project(ctx.agents, ctx.subagents, sessions, sandboxPolicy, entry, undefined, checkedAt))
+                         .filter(entry => entry !== undefined);
+                 }
+                 case 'descendants': {
+                     const entries = await ctx.subagents.listDescendants(parent.id, exec.signal);
+                     const checkedAt = new Date().toISOString();
+                     return entries
+-                        .map(entry => project(ctx.agents, sandboxPolicy, entry, entry, checkedAt))
++                        .map(entry => project(ctx.agents, ctx.subagents, sessions, sandboxPolicy, entry, entry, checkedAt))
+                         .filter(entry => entry !== undefined);
+                 }
+                 /* v8 ignore next 2 -- the resolver normalizes the schema-validated closed scope before dispatch. */

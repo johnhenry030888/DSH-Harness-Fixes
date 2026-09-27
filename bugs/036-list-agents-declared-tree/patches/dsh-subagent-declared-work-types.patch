@@ -1,0 +1,22 @@
+--- pristine/subagent/lib/types/index.d.ts
++++ installed/subagent/lib/types/index.d.ts
+@@ -216,6 +216,19 @@
+      */
+     listDescendants(rootSessionId: SessionId, signal?: AbortSignal): Promise<SubagentDescendantListEntry[]>;
+     /**
++     * The declared work of one live child, shared with the ordering guard: the
++     * absolute paths its own delegation prompt declares, plus the basis that
++     * produced them (`declared`, `cwd` fallback, or `unknown`). Bug 036 exposes
++     * the guard's own harvester so `list_agents` renders the declared tree
++     * rather than the session cwd.
++     * @param agent - the live child agent whose declared work is read.
++     * @returns declared paths in first-seen order plus the basis label.
++     */
++    declaredWorkOf(agent: Agent): {
++        readonly trees: readonly string[];
++        readonly basis: 'declared' | 'cwd' | 'unknown';
++    };
++    /**
+      * Remote face of {@link listChildren} for one browser: the durable listing
+      * plus live Agent activity and the delivery-time parent availability hint.
+      * Parent availability is a hint; {@link prompt} performs the authoritative

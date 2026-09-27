@@ -1,0 +1,16 @@
+--- pristine/subagent/lib/types/types.d.ts
++++ installed/subagent/lib/types/types.d.ts
+@@ -65,6 +65,13 @@
+ export interface SubagentSendMessageOptions {
+     /** Caller cancellation, owning the operation only until inbox acceptance. */
+     readonly signal: AbortSignal;
++    /**
++     * Optional caller-side ISO 8601 delivery stamp (millisecond precision).
++     * The `send_message` tool supplies the stamp it also returns to the model,
++     * so the tool result and the child's `subagent/steer` record carry the
++     * same `deliveredAt`; the service stamps admission when omitted (bug 034).
++     */
++    readonly deliveredAt?: string;
+ }
+ /**
+  * Observe-only identifying detail for a published subagent run, carried by

@@ -1,0 +1,12 @@
+--- pristine/llm-deepseek/lib/index.js
++++ installed/llm-deepseek/lib/index.js
+@@ -30,7 +30,8 @@
+ /** Resolve one legal thinking/effort pair without exposing `off` as a wire effort. */
+ function resolveThinking(options, defaults) {
+ 	if (options.purpose === "session-title") return { thinking: "disabled" };
+-	const effort = options.reasoningEffort === void 0 ? defaults.reasoningEffort : reasoningEffort(options.reasoningEffort);
++	const requestedEffort = options.reasoningEffort === "default" ? void 0 : options.reasoningEffort;
++	const effort = requestedEffort === void 0 ? defaults.reasoningEffort : reasoningEffort(requestedEffort);
+ 	if (defaults.thinking === "disabled" && effort !== void 0 && effort !== "off") throw new LlmError(`DeepSeek deployment does not support reasoning effort "${effort}"`, "UNSUPPORTED_REASONING_EFFORT");
+ 	if (effort === "off") return { thinking: "disabled" };
+ 	if (effort === "low" || effort === "high" || effort === "max") return {

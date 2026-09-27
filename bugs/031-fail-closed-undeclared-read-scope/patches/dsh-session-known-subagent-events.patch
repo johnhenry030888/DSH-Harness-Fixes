@@ -1,0 +1,16 @@
+--- pristine/session/lib/index.js
++++ installed/session/lib/index.js
+@@ -112,9 +112,13 @@
+ 	"session/title-llm-request",
+ 	"step/end",
+ 	"step/start",
++	"subagent/box",
+ 	"subagent/catalog",
+ 	"subagent/descriptor",
++	"subagent/inspection-scope",
+ 	"subagent/model-selection-policy",
++	"subagent/steer",
++	"subagent/steer-boundary",
+ 	"system/message",
+ 	"team/member",
+ 	"team/message/delivered",

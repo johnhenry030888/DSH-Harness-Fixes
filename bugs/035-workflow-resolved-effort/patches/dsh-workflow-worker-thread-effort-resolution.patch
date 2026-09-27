@@ -1,0 +1,132 @@
+--- pristine/workflow-worker-thread/lib/index.js
++++ installed/workflow-worker-thread/lib/index.js
+@@ -296,6 +296,13 @@
+ 	pendingStarts = /* @__PURE__ */ new Set();
+ 	/** Started-but-not-ended agents by seq — the pairing ledger the HOST guarantees (see {@link endAgent}). */
+ 	liveAgents = /* @__PURE__ */ new Map();
++	/**
++	* Resolved reasoning effort and its provenance, keyed by durable child id,
++	* attached to this run's `workflow/agent-start`/`agent-end` payloads so a
++	* drill can read the effort a stage actually ran at (bug 035: the run
++	* records carried `requestedProvider`/`requestedModel` only).
++	*/
++	childEfforts = /* @__PURE__ */ new Map();
+ 	quiescenceWaiters = [];
+ 	/** The per-run abort fanout every child start request carries. */
+ 	controller = new AbortController();
+@@ -430,10 +437,18 @@
+ 			case WorkerToHostType.Log:
+ 				if (this.cancelReason === void 0) this.observer.log(message.message);
+ 				break;
+-			case WorkerToHostType.AgentStart:
+-				this.liveAgents.set(message.info.seq, message.info);
+-				this.observer.agentStart(message.info);
++			case WorkerToHostType.AgentStart: {
++				const info = {
++					...message.info,
++					...this.childEfforts.get(message.info.childId) ?? {
++						resolvedEffort: null,
++						effortSource: "unknown"
++					}
++				};
++				this.liveAgents.set(message.info.seq, info);
++				this.observer.agentStart(info);
+ 				break;
++			}
+ 			case WorkerToHostType.AgentEnd:
+ 				this.endAgent(message.info);
+ 				break;
+@@ -487,6 +502,62 @@
+ 			}
+ 		);
+ 	}
++	/**
++	* Resolve one stage child's reasoning effort and its provenance from the
++	* child's own options, the parent's live request header, and the adapter's
++	* model default, so the run record never omits the fields (bug 035: a
++	* stage silently inherited the lead's `max` while its sibling recorded
++	* nothing). The child's own request header, once logged, stays the
++	* authoritative read; this is the creation-time resolution the host can
++	* attach to `workflow/agent-start` before that header exists.
++	* @param request - the worker's child-start request.
++	* @param run - the published child run.
++	* @returns `{resolvedEffort, effortSource}` with source `pinned`, `inherited`, `default`, or `unknown`.
++	*/
++	async resolveChildEffort(request, run) {
++		const requestedEffort = request.agentOptions?.reasoningEffort;
++		if (requestedEffort !== void 0) return {
++			resolvedEffort: String(requestedEffort),
++			effortSource: "pinned"
++		};
++		const childOptions = run.localAgent?.options;
++		const parentConfig = this.parent.session.requestHeader()?.config;
++		const optionEffort = childOptions?.reasoningEffort;
++		if (optionEffort !== void 0) {
++			const routeUnchanged = parentConfig !== void 0 && childOptions.provider === parentConfig.provider && childOptions.model === parentConfig.model;
++			return {
++				resolvedEffort: String(optionEffort),
++				effortSource: routeUnchanged && parentConfig.reasoningEffort === optionEffort ? "inherited" : "pinned"
++			};
++		}
++		const provider = childOptions?.provider ?? request.provider ?? parentConfig?.provider;
++		const model = childOptions?.model ?? request.model ?? parentConfig?.model;
++		if (provider === void 0 || model === void 0) return {
++			resolvedEffort: null,
++			effortSource: "unknown"
++		};
++		const llm = this.ctx.get("llm");
++		if (llm === void 0) return {
++			resolvedEffort: null,
++			effortSource: "unknown"
++		};
++		try {
++			const info = await llm.resolveModelInfo(provider, model, this.controller.signal);
++			if (info.reasoning === void 0) return {
++				resolvedEffort: null,
++				effortSource: "unknown"
++			};
++			return {
++				resolvedEffort: info.reasoning.defaultEffort === void 0 ? "default" : String(info.reasoning.defaultEffort),
++				effortSource: "default"
++			};
++		} catch {
++			return {
++				resolvedEffort: null,
++				effortSource: "unknown"
++			};
++		}
++	}
+ 	/** Await one provider-owned startup transaction and publish only while admitted. */
+ 	async startChild(callId, request) {
+ 		let run;
+@@ -528,6 +599,7 @@
+ 		}
+ 		const record = { run };
+ 		this.children.set(callId, record);
++		this.childEfforts.set(run.id, await this.resolveChildEffort(request, run));
+ 		const forwardResult = run.result.then((result) => {
+ 			try {
+ 				const snapshot = snapshotJsonValue({
+@@ -598,6 +670,7 @@
+ 			this.ctx.logger.warn(`workflow-worker-thread: child dispose failed: ${renderThrown(error)}`);
+ 		}).then(() => {
+ 			this.finishChild(callId);
++			this.childEfforts.delete(record.run.id);
+ 		});
+ 		return record.disposal;
+ 	}
+@@ -678,7 +751,13 @@
+ 	endAgent(end) {
+ 		/* v8 ignore next -- a real end still in flight across the grace force-settle: not orderable in-process */
+ 		if (!this.liveAgents.delete(end.seq)) return;
+-		this.observer.agentEnd(end);
++		this.observer.agentEnd({
++			...end,
++			...this.childEfforts.get(end.childId) ?? {
++				resolvedEffort: null,
++				effortSource: "unknown"
++			}
++		});
+ 	}
+ 	/**
+ 	* Synthesize the missing `agent-end` for every started-but-unpaired agent,

@@ -1,0 +1,84 @@
+--- pristine/subagent/lib/index.js
++++ installed/subagent/lib/index.js
+@@ -747,16 +747,39 @@
+ * @param content - model-visible message blocks supplied by the sender.
+ * @returns the durable user-message representation delivered to the recipient.
+ */
+-function createAgentMessage(sender, content) {
++function createAgentMessage(sender, content, extraSource) {
+ 	return createUserMessage({
+ 		content: [{
+ 			type: "text",
+ 			text: `Agent ${sender.id} sent a message: `
+ 		}, ...content],
+-		source: agentMessageSource(sender)
++		source: {
++			...agentMessageSource(sender),
++			...extraSource ?? {}
++		}
+ 	});
+ }
+ /**
++ * One durable steer-delivery record appended to the child that received it
++ * (bug 034: every drill since v18 had to reconstruct the steer split from the
++ * child's own log). The `deliveredAt` stamp is supplied by the delivery
++ * caller when it has one and stamped at admission otherwise, so
++ * `deliveredAt <= boundaryAt <= reply` is derivable from the transcript.
++ * @param messageId - the accepted inbox message id.
++ * @param target - the durable child session id the message went to.
++ * @param senderSessionId - the durable sender session id.
++ * @param deliveredAt - ISO 8601 delivery stamp with millisecond precision.
++ * @returns the durable `subagent/steer` payload.
++ */
++function steerDeliveryRecord(messageId, target, senderSessionId, deliveredAt) {
++	return {
++		messageId,
++		target,
++		senderSessionId,
++		deliveredAt
++	};
++}
++/**
+ * Append adjacent-Agent return guidance to a continuable child's initial task.
+ * @param parentId - durable parent session id named in the guidance.
+ * @param prompt - initial model-visible task blocks.
+@@ -2230,7 +2253,8 @@
+ 		return this.deliverToChild(sender, targetId, content, {
+ 			signal: options.signal,
+ 			delivery: "steer",
+-			interruptToolCall: true
++			interruptToolCall: true,
++			...options.deliveredAt === void 0 ? {} : { deliveredAt: options.deliveredAt }
+ 		});
+ 	}
+ 	/**
+@@ -2430,11 +2454,26 @@
+ 	}
+ 	/** Build and submit one message across the final synchronous admission cutoff. */
+ 	submitAdmitted(activation, content, options, parent) {
+-		const message = options.source === void 0 ? createAgentMessage(parent, content) : createUserMessage({
++		const isSteer = options.delivery === "steer";
++		const deliveredAt = isSteer ? options.deliveredAt ?? new Date().toISOString() : void 0;
++		const steerSource = isSteer ? {
++			steer: true,
++			deliveredAt
++		} : void 0;
++		const message = options.source === void 0 ? createAgentMessage(parent, content, steerSource) : createUserMessage({
+ 			content,
+-			source: options.source
++			source: {
++				...options.source,
++				...steerSource ?? {}
++			}
+ 		});
+-		return this.activations.submitAdmitted(activation, message, options.delivery, parent, options.signal, options.interruptToolCall === true);
++		const messageId = this.activations.submitAdmitted(activation, message, options.delivery, parent, options.signal, options.interruptToolCall === true);
++		if (isSteer) try {
++			activation.handle.agent.session.append("subagent/steer", steerDeliveryRecord(messageId, activation.childId, parent.id, deliveredAt));
++		} catch (error) {
++			this.ctx.logger.warn(`subagent "${activation.childId}" steer record append failed: ${errorChain(error)}`);
++		}
++		return messageId;
+ 	}
+ 	/** Refuse image content for a child whose fixed model accepts text only. */
+ 	async assertImageCapable(agent, signal) {

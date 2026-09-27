@@ -1,0 +1,143 @@
+--- pristine/subagent/lib/index.js
++++ installed/subagent/lib/index.js
+@@ -1811,16 +1811,39 @@
+ * @param agent - the live agent whose declared work is read.
+ * @returns absolute path prefixes in first-seen order.
+ */
+-function declaredTreesOf(agent) {
++function declaredWorkOfSession(session) {
+ 	const trees = /* @__PURE__ */ new Set();
+-	const limit = Math.min(agent.session.seq, 24);
+-	for (const event of agent.session.snapshotEvents(0, limit)) {
++	const limit = Math.min(session.seq, 24);
++	for (const event of session.snapshotEvents(0, limit)) {
+ 		if (event.type !== "user/message") continue;
+ 		for (const block of event.data.content ?? []) if (block.type === "text" && typeof block.text === "string") for (const path of declaredTreePaths(block.text)) trees.add(path);
+ 		break;
+ 	}
+-	if (trees.size === 0 && agent.session.header.cwd !== void 0) trees.add(resolve(agent.session.header.cwd));
+-	return [...trees];
++	if (trees.size > 0) return {
++		trees: [...trees],
++		basis: "declared"
++	};
++	if (session.header.cwd !== void 0) return {
++		trees: [resolve(session.header.cwd)],
++		basis: "cwd"
++	};
++	return {
++		trees: [],
++		basis: "unknown"
++	};
++}
++/**
++* The declared work of one live agent (its own delegation prompt), with the
++* basis that produced it. Bug 036 shares this one harvester with `list_agents`
++* so the ordering guard and the model-facing row can never disagree.
++* @param agent - the live agent whose declared work is read.
++* @returns declared paths and their basis (`declared`, `cwd`, or `unknown`).
++*/
++function declaredWorkOf(agent) {
++	return declaredWorkOfSession(agent.session);
++}
++function declaredTreesOf(agent) {
++	return declaredWorkOfSession(agent.session).trees;
+ }
+ /**
+ * The trees one requested delegation's prompt declares, if any.
+@@ -1837,10 +1860,12 @@
+ * the requested read-only lane's declared read scope.
+ *
+ * The read scope is the set of absolute paths the delegation's own prompt
+-* names — the tree the lane will actually read — with the parent workspace as
+-* the conservative fallback when a prompt declares none; the writer side is
+-* the same declaration from the writer's own first prompt, with its workspace
+-* as the fallback. "Write-capable" is read from the session's resolved
++* declares — the tree the lane will actually read — and a delegation that
++* declares none is treated as MAXIMAL (bug 031: it is refused while any
++* write-capable direct child is live, because the omission was otherwise a
++* bypass), while a declared scope keeps the shared declared-path comparison.
++* The writer side falls back to its own workspace when its prompt declares
++* none, and "Write-capable" is read from the session's resolved
+ * sandbox policy — the same `sandbox/mode` fold the enforcement dialects
+ * consume — because that is the one durable property that distinguishes a
+ * lane allowed to mutate files from bug 019's read-only lanes; the
+@@ -1859,22 +1884,36 @@
+ 	const agents = ctx.get("agents");
+ 	if (agents === void 0) return [];
+ 	const sandboxPolicy = ctx.get("sandboxPolicy");
+-	const readerTrees = readTrees !== void 0 && readTrees.length > 0 ? readTrees : [parent.session.header.cwd];
++	const declared = readTrees !== void 0 && readTrees.length > 0;
++	const readerTrees = declared ? readTrees : parent.session.header.cwd === void 0 ? [] : [resolve(parent.session.header.cwd)];
++	const scopeBasis = declared ? "declared" : "maximal";
+ 	const conflicts = [];
+ 	for (const candidate of agents.list()) {
+ 		if (candidate === parent) continue;
+ 		if (candidate.session.header.parentSession !== parent.session.header.id) continue;
+ 		if (candidate.status !== "running") continue;
+ 		if (sandboxPolicy?.overrideOf(candidate.session) === "read-only") continue;
+-		const writerTrees = declaredTreesOf(candidate);
++		const writerWork = declaredWorkOf(candidate);
++		if (!declared) {
++			conflicts.push({
++				agent: candidate,
++				readerTree: void 0,
++				writerTree: writerWork.trees[0],
++				writerBasis: writerWork.basis,
++				scopeBasis
++			});
++			continue;
++		}
+ 		let matched;
+ 		for (const readerTree of readerTrees) {
+ 			if (matched !== void 0) break;
+-			for (const writerTree of writerTrees) if (treesOverlap(readerTree, writerTree)) {
++			for (const writerTree of writerWork.trees) if (treesOverlap(readerTree, writerTree)) {
+ 				matched = {
+ 					agent: candidate,
+ 					readerTree,
+-					writerTree
++					writerTree,
++					writerBasis: writerWork.basis,
++					scopeBasis
+ 				};
+ 				break;
+ 			}
+@@ -1900,12 +1939,33 @@
+ * @throws {SubagentError} `INSPECTION_CONFLICT` naming the live writer(s).
+ */
+ function assertInspectionOrdering(ctx, parent, readOnlyRequested, prompt) {
+-	const conflicts = inspectionConflicts(ctx, parent, readOnlyRequested, declaredPromptTrees(prompt));
++	if (readOnlyRequested !== true) return;
++	const readTrees = declaredPromptTrees(prompt);
++	const declared = readTrees.length > 0;
++	const scopeBasis = declared ? "declared" : "maximal";
++	const conflicts = inspectionConflicts(ctx, parent, readOnlyRequested, readTrees);
++	try {
++		parent.session.append("subagent/inspection-scope", {
++			scopeBasis,
++			outcome: conflicts.length === 0 ? "admitted" : "refused",
++			readTrees,
++			conflicts: conflicts.map((conflict) => ({
++				agentId: conflict.agent.id,
++				...conflict.readerTree === void 0 ? {} : { readerTree: conflict.readerTree },
++				...conflict.writerTree === void 0 ? {} : { writerTree: conflict.writerTree },
++				...conflict.writerBasis === void 0 ? {} : { writerBasis: conflict.writerBasis }
++			}))
++		});
++	} catch {
++		/* the record is diagnostic; the guard decision must not depend on it */
++	}
+ 	if (conflicts.length === 0) return;
+ 	const named = conflicts.map((conflict) => `"${conflict.agent.id}"`).join(", ");
+-	const target = conflicts[0].readerTree === void 0 ? "(the parent session workspace)" : `"${conflicts[0].readerTree}"`;
+-	const writerTree = conflicts[0].writerTree === void 0 ? "(its workspace)" : `"${conflicts[0].writerTree}"`;
+-	throw new SubagentError(`subagent: refused a read-only delegation while write-capable ${conflicts.length === 1 ? "agent" : "agents"} ${named} ${conflicts.length === 1 ? "is" : "are"} still running against the same target path ${target} — the writer's declared work covers ${writerTree}, which overlaps the read scope this delegation's prompt declares. A review must not overlap a lane that may still mutate what it reads. Wait for the child's settlement notice, or interrupt_agent it, then retry the same read-only call unchanged; a read-only lane whose declared paths do not overlap any live writer's is admitted.`, "INSPECTION_CONFLICT");
++	if (scopeBasis === "maximal") throw new SubagentError(`subagent: refused a read-only delegation that declared no read scope: it is treated as covering the whole workspace, and write-capable ${conflicts.length === 1 ? "agent" : "agents"} ${named} ${conflicts.length === 1 ? "is" : "are"} still running (scopeBasis: maximal, writerBasis: ${conflicts[0].writerBasis}). A read-only review must not overlap a lane that may still mutate what it reads. Wait for the child's settlement notice, or interrupt_agent it, then retry the same read-only call unchanged; a read-only lane whose declared paths do not overlap any live writer's is admitted, and declaring its read scope narrows this rule to those paths.`, "INSPECTION_CONFLICT");
++	const first = conflicts[0];
++	const target = first.readerTree === void 0 ? "(the parent session workspace)" : `"${first.readerTree}"`;
++	const writerTree = first.writerTree === void 0 ? "(its workspace)" : `"${first.writerTree}"`;
++	throw new SubagentError(`subagent: refused a read-only delegation while write-capable ${conflicts.length === 1 ? "agent" : "agents"} ${named} ${conflicts.length === 1 ? "is" : "are"} still running against the same target path ${target} — the writer's declared work covers ${writerTree} (scopeBasis: ${first.scopeBasis}, writerBasis: ${first.writerBasis}), which overlaps the read scope this delegation's prompt declares. A review must not overlap a lane that may still mutate what it reads. Wait for the child's settlement notice, or interrupt_agent it, then retry the same read-only call unchanged; a read-only lane whose declared paths do not overlap any live writer's is admitted.`, "INSPECTION_CONFLICT");
+ }
+ //#endregion
+ /**

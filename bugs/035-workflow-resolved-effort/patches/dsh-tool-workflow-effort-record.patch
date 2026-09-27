@@ -1,0 +1,47 @@
+--- pristine/tool-workflow/lib/index.js
++++ installed/tool-workflow/lib/index.js
+@@ -55,6 +55,24 @@
+ 			return false;
+ 		}
+ 	};
++	/**
++	* The resolved effort and its provenance for one stage child, read from the
++	* child's own request header when it is live (the authoritative source),
++	* else from the creation-time resolution the engine attached. The fields
++	* are never omitted: an unresolvable value is `{resolvedEffort: null,
++	* effortSource: "unknown"}` (bug 035).
++	* @param agent - the stage payload carried by the workflow event.
++	* @returns the effort fields to append to the run record.
++	*/
++	const effortFields = (agent) => {
++		const live = ctx.get("agents")?.get(agent.childId);
++		const config = live?.session.requestHeader()?.config;
++		const headerEffort = config !== void 0 && config.provider === live.options.provider && config.model === live.options.model ? config.reasoningEffort : void 0;
++		return {
++			resolvedEffort: headerEffort ?? agent.resolvedEffort ?? null,
++			effortSource: agent.effortSource ?? (headerEffort === void 0 ? "unknown" : "inherited")
++		};
++	};
+ 	ctx.on("workflow/agent-start", (info, agent) => {
+ 		const session = active.get(info.id);
+ 		if (session === void 0) return;
+@@ -65,7 +83,8 @@
+ 			...agent.phase === void 0 ? {} : { phase: agent.phase },
+ 			childId: agent.childId,
+ 			...agent.requestedProvider === void 0 ? {} : { requestedProvider: agent.requestedProvider },
+-			...agent.requestedModel === void 0 ? {} : { requestedModel: agent.requestedModel }
++			...agent.requestedModel === void 0 ? {} : { requestedModel: agent.requestedModel },
++			...effortFields(agent)
+ 		})) active.delete(info.id);
+ 	});
+ 	ctx.on("workflow/agent-end", (info, agent) => {
+@@ -92,7 +111,8 @@
+ 			...agent.error === void 0 ? {} : { error: agent.error },
+ 			...agent.errorCode === void 0 ? {} : { errorCode: agent.errorCode },
+ 			...agent.requestedProvider === void 0 ? {} : { requestedProvider: agent.requestedProvider },
+-			...agent.requestedModel === void 0 ? {} : { requestedModel: agent.requestedModel }
++			...agent.requestedModel === void 0 ? {} : { requestedModel: agent.requestedModel },
++			...effortFields(agent)
+ 		})) active.delete(info.id);
+ 	});
+ 	return {

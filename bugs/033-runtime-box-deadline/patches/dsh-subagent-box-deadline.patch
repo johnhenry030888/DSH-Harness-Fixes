@@ -1,0 +1,218 @@
+--- pristine/subagent/lib/index.js
++++ installed/subagent/lib/index.js
+@@ -153,6 +153,59 @@
+ function assertSubagentMaxDepth(maxDepth) {
+ 	if (maxDepth !== void 0 && (typeof maxDepth !== "number" || !Number.isSafeInteger(maxDepth) || maxDepth < 0 || Object.is(maxDepth, -0))) throw new TypeError("subagent maxDepth must be a non-negative safe integer");
+ }
++/**
++ * Validate one delegation's runtime-enforced box. Unset means today's
++ * behaviour; a configured box must be a whole number of seconds, at least 5,
++ * so a box can never be mistaken for an instant timeout (bug 033).
++ * @param boxSeconds - the requested deadline in seconds, if any.
++ * @throws {TypeError} when the value is present but not a usable deadline.
++ */
++function assertBoxSeconds(boxSeconds) {
++	if (boxSeconds !== void 0 && (!Number.isInteger(boxSeconds) || boxSeconds < 5)) throw new TypeError("subagent boxSeconds must be an integer >= 5");
++}
++/**
++ * Enforce one one-shot run's box: on expiry, durably record `subagent/box` on
++ * the child, cancel the child the way `interrupt_agent` does, and leave the
++ * `{boxSeconds, elapsedSeconds, hit}` state on the run so the tool layer can
++ * report the partial result instead of a bare cancellation (bug 033). The
++ * returned run is unchanged; providers without a local agent are recorded but
++ * cannot be cancelled in-process.
++ * @param run - the published one-shot run.
++ * @param boxSeconds - the requested deadline in seconds, if any.
++ * @param logger - diagnostic sink for a failed durable record.
++ * @returns the same run, annotated with its box state when one was armed.
++ */
++function armOneShotBox(run, boxSeconds, logger) {
++	if (boxSeconds === void 0) return run;
++	const startedAt = Date.now();
++	const state = {
++		boxSeconds,
++		elapsedSeconds: null,
++		hit: false
++	};
++	run.box = state;
++	const timer = setTimeout(() => {
++		state.hit = true;
++		state.elapsedSeconds = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
++		try {
++			run.localAgent?.session.append("subagent/box", {
++				boxSeconds,
++				elapsedSeconds: state.elapsedSeconds,
++				hit: true
++			});
++		} catch (error) {
++			logger?.warn?.(`subagent "${String(run.id)}" box record append failed: ${errorChain(error)}`);
++		}
++		try {
++			run.localAgent?.cancel({ kind: "parent" }, { keepInbox: true });
++		} catch (error) {
++			logger?.warn?.(`subagent "${String(run.id)}" box interrupt failed: ${errorChain(error)}`);
++		}
++	}, boxSeconds * 1000);
++	if (typeof timer.unref === "function") timer.unref();
++	run.result.then(() => clearTimeout(timer), () => clearTimeout(timer));
++	return run;
++}
+ //#endregion
+ //#region lib/types/assistant-output.js
+ /**
+@@ -345,11 +398,13 @@
+ 			const own = child.session.snapshotEvents(boundary);
+ 			const output = finalAssistantOutput(own);
+ 			const lastActivityTime = own.at(-1)?.time;
++			const box = own.findLast((event) => event.type === "subagent/box")?.data;
+ 			captured = {
+ 				stopReason: epochStopReason(own),
+ 				stopTime: Date.now(),
+ 				...lastActivityTime === void 0 ? {} : { lastActivityTime },
+-				...output === void 0 ? {} : { output }
++				...output === void 0 ? {} : { output },
++				...box === void 0 ? {} : { box }
+ 			};
+ 		},
+ 		terminal,
+@@ -721,8 +776,9 @@
+ * @param stopReason - how the child's last ordinary turn ended.
+ * @returns the model-facing opening line of the settlement notice.
+ */
+-function settlementSummary(childId, stopReason) {
++function settlementSummary(childId, stopReason, box) {
+ 	const subject = `Background subagent ${childId}`;
++	if (box?.hit === true) return `${subject} hit its ${box.boxSeconds} s box and was interrupted after ${box.elapsedSeconds} s — it did not finish; its partial output follows.`;
+ 	switch (stopReason) {
+ 		case "completed": return `${subject} finished and will do no further work unless you send it more.`;
+ 		case "aborted": return `${subject} was stopped before it finished.`;
+@@ -746,7 +802,8 @@
+ * @returns the durable user-message representation delivered to the parent.
+ */
+ function createSettlementMessage(childId, terminal) {
+-	const summary = settlementSummary(childId, terminal.stopReason);
++	const box = terminal.box;
++	const summary = settlementSummary(childId, terminal.stopReason, box);
+ 	const stopTime = Number.isFinite(terminal.stopTime) ? terminal.stopTime : void 0;
+ 	const lastActivityTime = Number.isFinite(terminal.lastActivityTime) ? terminal.lastActivityTime : void 0;
+ 	const timing = stopTime === void 0 ? [] : [{
+@@ -770,7 +827,8 @@
+ 			summary: boundContextSummary(summary),
+ 			senderSessionId: childId,
+ 			...stopTime === void 0 ? {} : { stopTime },
+-			...lastActivityTime === void 0 ? {} : { lastActivityTime }
++			...lastActivityTime === void 0 ? {} : { lastActivityTime },
++			...box === void 0 ? {} : { box }
+ 		}
+ 	});
+ }
+@@ -1330,6 +1388,10 @@
+ 		let failure;
+ 		if (failures.length === 1) failure = failures[0];
+ 		else if (failures.length > 1) failure = new SubagentError(`subagent "${childId}" activation teardown failed at ${failures.length} boundaries: ` + failures.map((item) => errorChain(item)).join("; "), "ACTIVATION_TEARDOWN_FAILED", { cause: new AggregateError(failures) });
++		if (activation.boxTimer !== void 0) {
++			clearTimeout(activation.boxTimer);
++			activation.boxTimer = void 0;
++		}
+ 		this.resident.delete(childId);
+ 		this.notifySettlement(activation, activation.observer.terminal(failure));
+ 		this.releaseOwnership(childId);
+@@ -2009,6 +2071,49 @@
+ 		this.activations = new ContinuableActivationRegistry(ctx, (provider, childId, parent) => host.observeActivation(provider, childId, parent));
+ 	}
+ 	/**
++	* Arm one continuable child's box deadline. On expiry the runtime appends
++	* the durable `subagent/box` record to the child, then interrupts it the
++	* same way `interrupt_agent` does, so the settlement notice reports a box
++	* hit with the child's partial output instead of a silent cancellation
++	* (bug 033: two in-driver lanes produced nothing after 662 s / 323 s).
++	* @param parent - the exact live direct parent that started the child.
++	* @param childId - the durable child session id.
++	* @param boxSeconds - the deadline in seconds.
++	*/
++	armBox(parent, childId, boxSeconds) {
++		const startedAt = Date.now();
++		const timer = setTimeout(() => {
++			const activation = this.activations.get(childId);
++			if (activation === void 0 || activation.inbox.closing !== void 0) return;
++			const elapsedSeconds = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
++			const record = {
++				boxSeconds,
++				elapsedSeconds,
++				hit: true
++			};
++			activation.box = record;
++			try {
++				activation.handle.agent.session.append("subagent/box", record);
++			} catch (error) {
++				this.ctx.logger.warn(`subagent "${childId}" box record append failed: ${errorChain(error)}`);
++			}
++			try {
++				this.interrupt(childId, {
++					kind: "ancestor",
++					agent: parent
++				});
++			} catch (error) {
++				this.ctx.logger.warn(`subagent "${childId}" box interrupt failed: ${errorChain(error)}`);
++				try {
++					activation.handle.agent.cancel({ kind: "parent" }, { keepInbox: true });
++				} catch {}
++			}
++		}, boxSeconds * 1000);
++		if (typeof timer.unref === "function") timer.unref();
++		const activation = this.activations.get(childId);
++		if (activation !== void 0) activation.boxTimer = timer;
++	}
++	/**
+ 	* Start one continuable background child and resolve at initial inbox acceptance.
+ 	* Every earlier failure disposes any created handle and rolls back Activation
+ 	* and parent ownership without returning either id.
+@@ -2021,6 +2126,7 @@
+ 		this.activations.assertAdmitting(parent);
+ 		const persistence = this.requirePersistence();
+ 		assertSubagentMaxDepth(request.maxDepth);
++		assertBoxSeconds(request.boxSeconds);
+ 		const childId = spec.childId ?? brandString(randomUUID());
+ 		this.activations.assertChildIdAvailable(childId);
+ 		const childDepth = resolveChildDepth(parent, request.maxDepth);
+@@ -2052,9 +2158,7 @@
+ 				...request.toolFilter !== void 0 ? { toolFilter: request.toolFilter } : {},
+ 				...request.readOnly === true ? { readOnly: true } : {}
+ 			});
+-			return {
+-				childId,
+-				messageId: await this.activations.locks.run(childId, async () => {
++			const messageId = await this.activations.locks.run(childId, async () => {
+ 					spec.signal.throwIfAborted();
+ 					this.activations.assertAdmitting(parent);
+ 					this.activations.assertChildIdAvailable(childId);
+@@ -2093,7 +2197,11 @@
+ 					}, parent, () => {
+ 						establishCatalogChild(parent.session, childHeader, descriptor);
+ 					});
+-				})
++				});
++			if (request.boxSeconds !== void 0) this.armBox(parent, childId, request.boxSeconds);
++			return {
++				childId,
++				messageId
+ 			};
+ 		} catch (error) {
+ 			releaseHold();
+@@ -3546,6 +3654,7 @@
+ 			const provider = this.expectProvider(name);
+ 			this.assertCapabilities(provider, request);
+ 			assertSubagentMaxDepth(request.maxDepth);
++			assertBoxSeconds(request.boxSeconds);
+ 			if (request.outputSchema !== void 0) assertObjectJsonSchema(request.outputSchema);
+ 			const descriptor = snapshotSubagentDescriptor({
+ 				mode: "one-shot",
+@@ -3558,7 +3667,7 @@
+ 				...request,
+ 				descriptor
+ 			};
+-			const run = await provider.start(resolved);
++			const run = armOneShotBox(await provider.start(resolved), request.boxSeconds, this.ctx.logger);
+ 			const child = run.localAgent?.session;
+ 			if (child !== void 0) try {
+ 				establishCatalogChild(request.parent.session, child.header, descriptor);

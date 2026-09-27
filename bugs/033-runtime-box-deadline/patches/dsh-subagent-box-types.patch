@@ -1,0 +1,17 @@
+--- pristine/subagent/lib/types/types.d.ts
++++ installed/subagent/lib/types/types.d.ts
+@@ -201,6 +201,14 @@
+      * persona (strict `{{…}}` interpolation against the registered variables).
+      */
+     readonly persona?: string;
++    /**
++     * Optional runtime-enforced delegation deadline in whole seconds (>= 5).
++     * Omitted means no box. On expiry the runtime durably records
++     * `subagent/box` on the child, interrupts it the way `interrupt_agent`
++     * does, and reports the box hit with the child's partial output (bug 033).
++     * Independent of `maxDepth` and `toolFilter`.
++     */
++    readonly boxSeconds?: number;
+ }
+ /**
+  * Provider-facing one-shot request after {@link SubagentRuntime.start} resolves

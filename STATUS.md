@@ -1,14 +1,28 @@
 # Status
 
-All thirty-one local fixes are applied to the `dsh` 0.1.5-rc.2 bundle (bugs
+All thirty-seven local fixes are applied to the `dsh` 0.1.5-rc.2 bundle (bugs
 001-004 re-applied 2026-09-20; bug 005 added 2026-09-25; bugs 006-010 added
 2026-09-25 from the orchestrator drill v3/v4 findings; bugs 011-014, 018, 019
 added 2026-09-26 from drill v6/v7/v8 findings; bugs 014b, 017, 021, 022 added
 2026-09-26 from drill v9/v10 findings; bugs 023-025 added 2026-09-26 from
 drill v11 findings; bugs 016, 020, 026-030 added 2026-09-26 from drill v12
 findings and the orchestrator efficiency pass; bug 016b added 2026-09-26 from
-drill v14's single FAIL), with patches generated against pristine published
-sources and verified by pristine->reapply round-trips.
+drill v14's single FAIL; **bugs 031-036 added 2026-09-27 from drill
+v16/v17/v19/v21-v26 findings** — the ordering guard's undeclared-scope bypass
+and declared-path collapse, the runtime `boxSeconds` deadline, steer
+`deliveredAt`/boundary telemetry, workflow resolved-effort records + adapter
+header honesty, and the `list_agents` declared tree), with patches generated
+against pristine published sources and verified by pristine->reapply
+round-trips.
+
+Batch note (2026-09-27, fixes 031-036): all six landed with green `check.sh`,
+idempotent `reapply.sh`, a byte-exact six-fix patch round trip (forward ==
+installed, reverse == pre-batch baseline), module-level probes (031/032/034)
+and live probes (033/034/035/036) pasted in each `EVIDENCE.md`;
+`check-all.sh` reports **37 fixes PRESENT** and `verify.sh` prints
+`verify: OK`. **The user must restart `dsh web` to load the patched bundle**;
+`dsh --profile headless "…pong"` already prints `pong` on the patched
+bundle.
 
 Deployment note (2026-09-26): `~/.dsh/settings.yaml` now **deliberately**
 re-pins the eight `opencode-go.models` entries, so `llm.listModels()` serves the
@@ -287,6 +301,12 @@ carries the outstanding live probes for 016, 020, 027, 028, 029 and 030.
 | [016](bugs/016-catalog-self-query/README.md) | no way to query one's own catalog (the lead hand-counts 177 vs 178; children report 161 or 137) | APPLIED to bundle 0.1.5-rc.2 (`list_subagent_models({catalog:true})` — a third, mutually exclusive mode returning the authoritative `{count,names}`) | NOT-FILED |
 | [016b](bugs/016b-catalog-mode-exclusivity/README.md) | `catalog: true` was silently accepted together with `provider`/`model`, so a mixed call answered the catalog question and dropped the route arguments (drill v14 §1 — the run's only FAIL) | APPLIED to bundle 0.1.5-rc.2 (the catalog branch refuses route arguments by name; the tool description states the rule; live on a freshly booted process: both mixed calls rejected with the named message while `{catalog:true}` alone still returned 178/178 and `{provider}` alone still listed 8 routes) | NOT-FILED |
 | [020](bugs/020-scriptable-session-creation/README.md) | no scriptable local session creation: every switch-path/preset probe costs the operator manual GUI work | APPLIED (helper + documented path; no harness code change — auth untouched) | NOT-FILED |
+| [031](bugs/031-fail-closed-undeclared-read-scope/README.md) | the 023/026 ordering guard is fail-open on an undeclared read scope (v25 §5 probe 1; v26 §5 item 3 + Appendix A admitted G1 with four writers live) | APPLIED to bundle 0.1.5-rc.2 (undeclared read scope is maximal: refuse while any write-capable child is live, with the required message and a durable `subagent/inspection-scope {scopeBasis, outcome}` record; declared scopes unchanged) | NOT-FILED |
+| [032](bugs/032-declared-path-overlap-pairs/README.md) | the guard harvests every absolute path and reports collapsed ancestors, refusing genuinely disjoint reviews (v21 §4.2, v23 §4.2, v26 §5 + Appendix A2/A3) | APPLIED to bundle 0.1.5-rc.2 (incidental/sentinel mentions filtered, most-specific path kept, declared reader × declared writer overlap only, refusal names the actual pair + `scopeBasis`/`writerBasis`; module probe: pre-fix FAIL 5 cases, post-fix PASS) | NOT-FILED |
+| [033](bugs/033-runtime-box-deadline/README.md) | no runtime-enforced delegation deadline: overrunning lanes returned nothing (v23 §3 0/19 mutants; v24 §3 2 lanes overran and returned nothing; v26 §3/F1/F2 662 s and 323 s with no artifact) | APPLIED to bundle 0.1.5-rc.2 (`boxSeconds` row + `box_seconds` per call, runtime interrupt on expiry, `agent "<id>" hit its <n> s box …` with partial output, durable `subagent/box` + box-hit settlement notice; live probe: 15 s box both variants, ~31 s wall, record `{15,15,hit:true}`) | NOT-FILED |
+| [034](bugs/034-steer-telemetry/README.md) | steer delivery has no timestamps: the deliveredAt → boundary → reply split is unmeasurable (v21 §4.3; v23 §5 item 5; v25 §5 item 8 measured −0.306 s; v26 §5 item 5 only the 14 s total) | APPLIED to bundle 0.1.5-rc.2 (`deliveredAt` in the `send_message` result, durable `subagent/steer` on the child, `subagent/steer-boundary` at the inbox claim; fake-clock probe + live probe: 20:53:43.297Z → 20:53:43.435Z → 20:53:49.370) | NOT-FILED |
+| [035](bugs/035-workflow-resolved-effort/README.md) | workflow run records omit the resolved effort and an adapter header can lack the key entirely (v16 F5/v17 §2 silent lead-max; v19 §5 item 2/v25 §5 item 2 longcat header had no `reasoningEffort`) | APPLIED to bundle 0.1.5-rc.2 (`resolvedEffort` + `effortSource` on `tool-workflow/agent-start`/`agent-end`, creation-time resolution in the worker host, and the explicit `"default"` sentinel in `dsh-llm` handled by both adapters; live probe: 3 records incl. `max`/`inherited`, every header carries the key, longcat `"default"`) | NOT-FILED |
+| [036](bugs/036-list-agents-declared-tree/README.md) | `list_agents` renders the session cwd instead of the delegation's declared tree; settled rows carry no tree/policy (v16 F2, v17 §5, v20 F2, v21 §5 item 4, v22 §5 item 4, v26 §5 item 4) | APPLIED to bundle 0.1.5-rc.2 (service exposes the guard's `declaredWorkOf`; rows render `[writes in <declared path> (declared)]` + `trees`/`treeBasis`, settled-row policy absence documented; live probe shows the declared drill subpath with `checkedAt`/`filePolicy`) | NOT-FILED |
 
 ## Legend
 

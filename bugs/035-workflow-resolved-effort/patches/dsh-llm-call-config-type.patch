@@ -1,0 +1,16 @@
+--- pristine/llm/lib/types/call-config.d.ts
++++ installed/llm/lib/types/call-config.d.ts
+@@ -16,6 +16,13 @@
+ export interface LlmCallConfig {
+     provider: string;
+     model: string;
++    /**
++     * Requested reasoning effort. May be the explicit `"default"` sentinel:
++     * the model supports reasoning but neither the caller nor the adapter
++     * pinned a level, so the adapter's own default applies and the logged
++     * request header never silently lacks the key (bug 035). Adapters must
++     * treat the sentinel as "no explicit effort".
++     */
+     reasoningEffort?: ReasoningEffortId;
+     temperature?: number;
+     maxTokens?: number;

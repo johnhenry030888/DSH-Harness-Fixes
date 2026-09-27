@@ -4,9 +4,10 @@
 
 - Objective: Batch project for DeepSeek Harness bug fixes
 - Stack: polyglot | Features: none
-- Phase: **all thirty-one local fixes applied** to `dsh` 0.1.5-rc.2 (batch 5 —
+- Phase: **all thirty-seven local fixes applied** to `dsh` 0.1.5-rc.2 (batch 5 —
   016, 020, 026-030 — landed from drill v12's findings plus the orchestrator
-  efficiency pass). Drill v13 then closed fix 011: **ten clean
+  efficiency pass; **batch 6 — 031-036 — landed 2026-09-27** from the
+  v16/v17/v19/v21-v26 findings). Drill v13 then closed fix 011: **ten clean
   `standard → orchestrator` switch samples**, no 176-tool mount in any.
 - Batch-6 fixes prompt written (2026-09-27): `~/Desktop/opencode-harness-fixes-prompt-6.md` — a
   **mandatory, completion-gated** opencode prompt for the six harness fixes the v16–v26 drills
@@ -21,6 +22,57 @@
   **37 fixes present**, requires per-fix patch round-trips, behavioural or live proofs, `verify.sh`/`audit-secrets.sh`/
   hooks/headless-`pong` green, STATUS+STATE updates, commit+push, and a BLOCKED entry with the exact error for
   anything not landed (silent skipping is defined as a failed batch).
+- What changed this turn (2026-09-27, batch 6 — harness fixes 031-036):
+  - **All six landed**, each as `bugs/031-…` … `bugs/036-…` with README,
+    EVIDENCE, VERSIONS, UPSTREAM-DRAFT, `patches/`, `scripts/{check.sh,reapply.sh}`,
+    a module-level probe (031/032/034) or a live probe (033/034/035/036), and
+    drill citations:
+    - **031** `dsh-subagent` + `dsh-session`: an undeclared read scope is
+      maximal — refuse while any write-capable child is live, with the required
+      message and a durable `subagent/inspection-scope {scopeBasis, outcome}`
+      record (v25 §5 item 7; v26 §5 item 3 / Appendix A). Four new known session
+      event types provisioned (`subagent/inspection-scope|box|steer|steer-boundary`).
+    - **032** `dsh-subagent`: incidental/sentinel mentions are not declared work,
+      the most-specific declared path survives, overlap is declared-reader ×
+      declared-writer only, and the refusal names the actual pair with
+      `scopeBasis`/`writerBasis` (v21 §4.2, v23 §4.2, v26 §5 + Appendix A2/A3).
+    - **033** `dsh-subagent` + `dsh-tool-subagent` + types: `boxSeconds` row /
+      `box_seconds` per call (≥5, unset = today), runtime interrupt on expiry,
+      `agent "<id>" hit its <n> s box and was interrupted after <m> s; partial
+      output follows: …`, durable `subagent/box` + box-hit settlement notice
+      (v23 §3, v24 §3, v26 §3/F1/F2).
+    - **034** `dsh-tool-subagent-control` + `dsh-subagent` + `dsh-agent-loop` +
+      types: `deliveredAt` in the tool result, durable `subagent/steer` on the
+      child, `subagent/steer-boundary` at the inbox claim; monotone
+      deliveredAt ≤ boundaryAt ≤ reply (v21 §4.3, v23 §5 item 5, v25 §5 item 8
+      −0.306 s, v26 §5 item 5).
+    - **035** `dsh-tool-workflow` + `dsh-workflow-worker-thread` + `dsh-llm` +
+      both adapters + `dsh-workflow` types: `resolvedEffort`/`effortSource`
+      (`pinned|inherited|default|unknown`, never omitted) on `agent-start` and
+      `agent-end`, and the explicit `"default"` sentinel so a reasoning-capable
+      model's header always carries the key (v16 F5, v17 §2, v19 §5 item 2,
+      v25 §5 item 2).
+    - **036** `dsh-subagent` (service + types) + `dsh-tool-subagent-control`:
+      `list_agents` renders `[writes in <declared path> (declared)]` from the
+      guard's own `declaredWorkOf`, with `trees`/`treeBasis`; settled-row policy
+      absence documented (v16 F2, v17 §5, v20 F2, v21 §5 item 4, v22 §5 item 4,
+      v26 §5 item 4).
+  - **Verification:** `check-all.sh` → **37 fixes PRESENT**, exit 0; the six
+    `check.sh` scripts fail on the pre-fix shadow bundle and pass on the
+    installed one; `/tmp/opencode/roundtrip.sh` proves forward apply ==
+    installed and reverse apply == pre-batch baseline for all 15 touched files;
+    module probes: 031 PASS (pre-fix 6 failures), 032 PASS (pre-fix 5
+    failures), 034 PASS (pre-fix builders absent); live probes: **033 PASS**
+    (per-call 15 s over a 30 s row, row 15 s, ~31 s wall, `subagent/box
+    {15,15,hit:true}`), **034 PASS** (deliveredAt 20:53:43.297Z → boundaryAt
+    20:53:43.435Z → reply 20:53:49.370), **035 PASS** (three `agent-start`
+    records incl. `max`/`inherited`; every header carries `reasoningEffort`;
+    longcat-2.0 = `"default"`), **036 PASS** (`[writes in
+    /tmp/orch-drill-036/declared/sub/file.txt (declared)]`).
+  - **Deployment note:** the user must restart `dsh web` to load the patched
+    bundle; `dsh --profile headless "…pong"` already prints `pong` (exit 0).
+  - Scratch homes used by the probes live under `/tmp/orch-drill-033/034/035/036`;
+    `~/.dsh` was read-only throughout (credentials symlinked, sessions own).
 - What changed this turn (2026-09-27, drill v26 follow-up):
   - **drill v26: not closed; the blockers are structural.** Green: parameter
     multi-value coverage (7/7 params at ≥2 values) with 0 decorative/inconsistent
