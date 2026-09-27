@@ -73,6 +73,10 @@
     bundle; `dsh --profile headless "…pong"` already prints `pong` (exit 0).
   - Scratch homes used by the probes live under `/tmp/orch-drill-033/034/035/036`;
     `~/.dsh` was read-only throughout (credentials symlinked, sessions own).
+  - **Commit/push:** `a7caefc` (65 files, +4591/-5; pre-commit
+    shfmt/shellcheck/typos green, pre-push pytest `7 passed`, cargo/go/node
+    skips, secrets OK) pushed `4b0f5d9..a7caefc` to `origin/main`
+    (`https://github.com/johnhenry030888/DSH-Harness-Fixes`).
 - What changed this turn (2026-09-27, drill v26 follow-up):
   - **drill v26: not closed; the blockers are structural.** Green: parameter
     multi-value coverage (7/7 params at ≥2 values) with 0 decorative/inconsistent
@@ -585,6 +589,22 @@
     `main`; pre-push hooks passed on every push (pytest, node, cargo/go skips,
     secrets green)
   - [x] update this file (every turn ends by updating it)
+- Autonomy loop — batch 6 (fixes 031-036):
+  - [x] lint (`biome`/`shfmt`/`shellcheck`/`typos`) — clean (biome 0 errors;
+    three optional-chain warnings left as-is, the pre-commit hook is
+    warning-tolerant)
+  - [x] `./scripts/check-all.sh` — exit 0, 37 fixes PRESENT (74 PRESENT lines)
+  - [x] `./scripts/verify.sh` — `verify: OK`
+  - [x] `sh scripts/audit-secrets.sh` — exit 0
+  - [x] six `check.sh` pre-fix MISSING / post-fix PRESENT + idempotent
+    `reapply.sh` (twice each on shadow bundles)
+  - [x] six patch round-trips — forward == installed, reverse == baseline
+  - [x] probes: module 031/032/034, live 033/034/035/036 (outputs pasted in
+    each `EVIDENCE.md`)
+  - [x] `dsh --profile headless "…pong"` → `pong`, exit 0
+  - [x] commit `a7caefc`; push `4b0f5d9..a7caefc` to `origin/main` (hooks
+    green)
+  - [x] update this file (this edit; pushed as the docs follow-up commit)
 - Open items:
   - **Live probes outstanding for 016 / 020 / 027 / 028 / 029 / 030** — applied
     and `check.sh`-green, but no drill has exercised them yet; drill v14 carries
