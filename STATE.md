@@ -23,6 +23,24 @@
   **37 fixes present**, requires per-fix patch round-trips, behavioural or live proofs, `verify.sh`/`audit-secrets.sh`/
   hooks/headless-`pong` green, STATUS+STATE updates, commit+push, and a BLOCKED entry with the exact error for
   anything not landed (silent skipping is defined as a failed batch).
+- Batch-8 fixes prompt written (2026-09-28): `~/Desktop/opencode-harness-fixes-prompt-8.md` — the last three
+  items, each with drill citations and verified seams, gate raised to **42 fixes**:
+  **039 — a supported offline records reader** (`bugs/039-…/scripts/dsh-records.mjs`, repo-side like bug 020,
+  no bundle patch, **no new model-facing tool**): locates a session by globbing
+  `$DSH_HOME/sessions/*/<sid>/session.v3.jsonl.zstd` (slug rule documented), decompresses multi-frame with
+  `zstd -dc`, and prints the `request/header` summary (toolCount, route, `reasoningEffort`), per-type record
+  counts, the `subagent/box` / `subagent/steer` / `subagent/steer-boundary` / `tool-workflow/agent-start` rows,
+  and `--usage` totals (counting each `assistant/message` usage once — the `data.stream[].chunk.usage`
+  duplicate is a known trap), with `--children` for the per-child table and an honest non-zero failure — the
+  fix for v27 F3, which cost three acceptance rows and the share bar.
+  **040 — a reader's declared scope survives the incidental filter**: `DECLARED_PATH_INCIDENTAL`
+  (`dsh-subagent/lib/index.js:1884`) is applied to both sides, so a reader declaring `/tmp/x` as its read
+  scope is harvested as empty, and fail-closed 031 then refuses it (v27 F2, verbatim). The reader side
+  (`declaredPromptTrees()`, ~1963) gets explicit-cue precedence while the writer side
+  (`declaredWorkOfSession()`, ~1924) keeps the v26 A3 behaviour, scratch roots become declarable, and the
+  refusal + `subagent/inspection-scope` record name any dropped incidental paths.
+  **041 — one authoritative total from `check-all.sh`**: a final `TOTAL: N fixes present, M missing` line, so
+  drills stop reconciling "39 fixes" against "37 ids / 77 assertion lines" (v27 F1).
 - What changed this turn (2026-09-28, drill v27 — first run on the 39-fix bundle):
   - **The wall bar passed for the first time: 1 324 s** (bar 1 500; pre-dispatch 156 s vs v26's 340 s) with
     lead calls **16** (at budget). Fixes accepted with pasted records: **031** (`scopeBasis: maximal`
