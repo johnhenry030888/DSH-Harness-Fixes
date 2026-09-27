@@ -8,6 +8,19 @@
   016, 020, 026-030 — landed from drill v12's findings plus the orchestrator
   efficiency pass). Drill v13 then closed fix 011: **ten clean
   `standard → orchestrator` switch samples**, no 176-tool mount in any.
+- Batch-6 fixes prompt written (2026-09-27): `~/Desktop/opencode-harness-fixes-prompt-6.md` — a
+  **mandatory, completion-gated** opencode prompt for the six harness fixes the v16–v26 drills
+  justified, each with its drill citation, the exact seam (verified line numbers), the required
+  behaviour, the acceptance probe and the anti-pitfalls:
+  **031** guard fail-closed on an undeclared read scope; **032** guard overlap on declared paths with
+  the real pair in the message (kills the common-ancestor collapse and the `/​tmp` false refusal);
+  **033** a runtime-enforced delegation deadline (`boxSeconds`) that interrupts and returns a partial
+  result; **034** steer telemetry (`deliveredAt` + boundary stamp); **035** workflow resolved effort +
+  its provenance on the run records, and an explicit effort-or-default marker from every adapter; **036**
+  `list_agents` rendering the delegation's declared tree. The prompt fixes the batch gate at
+  **37 fixes present**, requires per-fix patch round-trips, behavioural or live proofs, `verify.sh`/`audit-secrets.sh`/
+  hooks/headless-`pong` green, STATUS+STATE updates, commit+push, and a BLOCKED entry with the exact error for
+  anything not landed (silent skipping is defined as a failed batch).
 - What changed this turn (2026-09-27, drill v26 follow-up):
   - **drill v26: not closed; the blockers are structural.** Green: parameter
     multi-value coverage (7/7 params at ≥2 values) with 0 decorative/inconsistent
