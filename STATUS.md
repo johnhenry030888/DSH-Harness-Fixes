@@ -64,6 +64,23 @@ and `filePolicy`. No BLOCKED entries and no unreported gaps were found; the orch
 was then updated to the new semantics (guard fail-closed/declared paths, `boxSeconds` as a harness
 guarantee, steer stamps, `resolvedEffort`/`effortSource`, declared-tree rows).
 
+Batch-7 note (2026-09-27, fixes 037-038): both landed and were independently re-verified from the outside
+too — `check-all.sh` exit 0 with **77 `PRESENT` lines = 39 fixes**, `verify.sh` OK, `audit-secrets.sh` OK,
+`dsh --profile headless "…pong"` → `pong`. **037**: `DEFERRED_AGENT_OPTIONS` is now `{isolation, agentType}`
+and the `agent()` description documents `effort`; the live probe (run again here) shows stage 1 pinned
+`effort: "low"` recorded as `requestedEffort='low' resolvedEffort='low' effortSource='pinned'`, stage 2
+omitting it as `resolvedEffort='max' effortSource='inherited'`, an unadvertised `"extreme"` failing with the
+platform code **`UNSUPPORTED_REASONING_EFFORT`** naming the ladder `off, minimal, low, medium, high` (no
+silent fallback), and a non-string effort rejected as `INVALID_ARGUMENT`; the child headers carry
+`reasoningEffort='low'` and `'max'` respectively. **038**: `--routes --json` prints exactly the **8** pinned
+routes with `basis {policy: settings.yaml#subagent-model-selection.allowedModels (8), catalog: storages/llm-pi-ai/catalog/*.json (33)}`,
+and with an empty `DSH_HOME` it prints `routes: null` plus the two named missing sources and exits **1**;
+the auth fence is unchanged (`/api/routes` 401, `/api/providers` 401, `/v1/models` 404).
+
+**All eight drill-opened harness items are now closed** (031–038). The only item from the v25/v26 lists that
+is deliberately *not* a fix is the read-only lane's wiped `/tmp`: it is the sandbox design (a read-only
+lane's scratch is per-invocation), now documented rather than patched.
+
 Deployment note (2026-09-26): `~/.dsh/settings.yaml` now **deliberately**
 re-pins the eight `opencode-go.models` entries, so `llm.listModels()` serves the
 pinned 8. Bug 005's check no longer fails on a pin (it prints a NOTE); bug 012

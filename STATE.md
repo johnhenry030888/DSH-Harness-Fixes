@@ -23,7 +23,29 @@
   **37 fixes present**, requires per-fix patch round-trips, behavioural or live proofs, `verify.sh`/`audit-secrets.sh`/
   hooks/headless-`pong` green, STATUS+STATE updates, commit+push, and a BLOCKED entry with the exact error for
   anything not landed (silent skipping is defined as a failed batch).
-- Batch-7 fixes prompt written (2026-09-27): `~/Desktop/opencode-harness-fixes-prompt-7.md` — a
+- What changed this turn (2026-09-27, batch-7 independent verification):
+  - **Re-verified batch 7 from the outside**: `check-all.sh` exit 0 with **77 `PRESENT` lines = 39 fixes**;
+    `verify.sh` OK; `audit-secrets.sh` OK; headless `pong` OK; both new `check.sh` green and both
+    `reapply.sh` idempotent ("already present"). **037** live probe re-run: a pinned `effort: "low"` stage
+    records `requestedEffort`/`resolvedEffort`/`effortSource: "pinned"`, an omitting stage records the
+    lead's `max` as `inherited`, an unadvertised `"extreme"` fails with `UNSUPPORTED_REASONING_EFFORT` and
+    the ladder in the message, and `effort: 5` is `INVALID_ARGUMENT`; `DEFERRED_AGENT_OPTIONS` is now
+    `{isolation, agentType}` and the `agent()` description documents `effort`. **038** verified offline:
+    `--routes --json` returns the **8** pinned routes with a `basis` block (policy 8 ∩ catalogue 33), and an
+    empty `DSH_HOME` gives `routes: null` + the named sources + exit 1; the auth fence is unchanged
+    (`/api/routes` 401, `/api/providers` 401, `/v1/models` 404).
+  - **Doctrine updated (backup `agent.cordis.yml.pre-v29-20260927`, two sentences):** effort-sensitive
+    fan-out now works in **both** places (`agent(prompt, {provider, model, effort})` pins a stage and the
+    record carries `requestedEffort`/`resolvedEffort`/`effortSource`, so a cheap merge can stay inside the
+    workflow instead of paying a handoff; read `effortSource` — `inherited` on a stage you meant to pin is a
+    defect); and the route list is obtained **offline** with the 020 helper's `--routes --json` (one bash
+    call, no session, honest `UNKNOWN`), while the in-session authority stays `list_subagent_models()`.
+  - **All eight drill-opened harness items (031–038) are closed.** The read-only lane's wiped `/tmp` is
+    documented as sandbox design rather than patched.
+  - **Drill v27 updated** (`~/Desktop/orchestrator-drill-prompt-v27.md`): its acceptance table now covers
+    **031–038**, its preflight uses `--routes` instead of probing endpoints, and its fan-out phase requires
+    the pinned `effort` option to be exercised inside the workflow.
+- Earlier this turn (2026-09-27, batch-7 fixes prompt written): `~/Desktop/opencode-harness-fixes-prompt-7.md` — a
   mandatory, completion-gated opencode prompt for the **two remaining drill-opened items**, with every
   seam verified against the installed bundle before writing:
   **037 — `agent(prompt, {effort})`**: accept a pinned per-stage effort (the plumbing already exists from
