@@ -8,6 +8,36 @@
   016, 020, 026-030 — landed from drill v12's findings plus the orchestrator
   efficiency pass). Drill v13 then closed fix 011: **ten clean
   `standard → orchestrator` switch samples**, no 176-tool mount in any.
+- What changed this turn (2026-09-27, drill v25 follow-up):
+  - **drill v25: the in-driver recipe held; the correctness gap moved back to the
+    lead's own rows.** In-driver loops did 21 mutants in 1.3 s and 28 in 1.6 s;
+    two sweeps executed 49 mutants; the engineered disagreement produced **3
+    conflicts / 2 consensus** (exercised on real data); barrier 71 s; banner quoted
+    with a content check; guard refuse→admit; review reproduced every survivor;
+    `app/` clean. Missed: wall **1 976 s**, calls **20**, share **0.31/0.34**, merge
+    130 s, returns 7/8, and **4 falsifiable survivors** — all four traced to frozen
+    row blind spots (tuple-vs-list pinned only as `str`, an unexercised
+    missing-key branch, a rounding rule indistinguishable at 1 dp vs 2 dp, an
+    unformatted empty report). Two new defects: the mutation driver restored only
+    the current unit's target (26 recorded kills → **24 kills / 4 survivors** on a
+    fresh-tree re-verify), and the guard **admits an undeclared read scope**.
+  - **Persona corrected (backup `agent.cordis.yml.pre-v26-20260927`, five
+    sentences):** a mutation driver must restore the **whole tree** (or a fresh tree
+    per unit) before every unit, not just the current target, and self-verify the
+    mutation applied; the lane's single bash call is its **first and last** action
+    (no follow-up analysis turns) with **one script per loop and no repair passes**;
+    the row gate must require **each clause parameter at more than one value** (it
+    would have caught all four survivors); **never assert an effort in a delegation
+    prompt** — the row pin and the child's header are authoritative; and a
+    read-only delegation must **declare its read scope**, because one that declares
+    none is admitted while writers are live.
+  - **Open harness items stay six**, now with two extra live findings folded in:
+    the guard both collapses to a common ancestor *and* admits an undeclared scope,
+    and the gateway route list is not reachable for a preflight route count.
+  - **Drill v26 written** (`~/Desktop/orchestrator-drill-prompt-v26.md`): the
+    closure run — whole-tree mutation drivers, first-and-last bash calls,
+    parameter-discriminating rows, declared read scopes, and a wall target that
+    separates dispatch latency from lane overruns.
 - What changed this turn (2026-09-27, drill v24 follow-up):
   - **drill v24: correctness spine solid, wall bar missed by ~484 s for the v23
     disease.** Green: the AST gate caught 4 decorative + 5 inconsistent rows before

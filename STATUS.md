@@ -25,6 +25,27 @@ Verification note (2026-09-26, drill v13): fix 011 is **CLOSED** — ten clean
 corroborated at
 transcript level, no 176-tool mount.
 
+Verification note (2026-09-27, drill v25, in-driver run): **the in-driver recipe
+reproduced and the disagreement branch was exercised on real data; a real
+correctness gap appeared in the lead's own frozen rows.** Green: three lanes ran
+in-driver loops and every per-unit job finished under the driver's deadline check
+(**21 mutants in 1.3 s**, **28 in 1.6 s** — v24's recipe twice), two independent
+sweeps executed **49 mutants**, the disagreement engineering produced **3 conflicts
+/ 2 consensus** (D1, D2, D4 exercised for real, D2 quoted and adjudicated),
+candidate barrier **71 s**, banner quoted with a content check, guard refuse→admit,
+review reproduced every claimed survivor, `app/` byte-clean, no lead-owned file
+touched. Missed: wall **1 976 s** (bar 1 500 — a multi-loop forensic lane overran
+by 664 s repairing its own parsing, a sweep lane sat 8 silent minutes after its
+driver had already written the artifact, and preflight+spec+gate ate 298 s), lead
+calls **20**, share **0.31/0.34** (bar 0.17), merge 130 s, lane returns 7/8, and
+**4 falsifiable survivors** — every one a hole in the lead-authored frozen rows
+(tuple-vs-list pinned only as `str`; a missing-key branch never exercised; `AVG 1.5`
+identical at 1 dp and 2 dp; no row formatting an empty report), all four reproduced
+by the review. Two new findings: the lead's mutation driver restored only the
+current unit's target file, so its recorded 26 kills fell to **24 kills / 4
+survivors** on a fresh-tree re-verify; and the ordering guard **admits a read-only
+delegation that declares no scope** while writers are live.
+
 Verification note (2026-09-27, drill v24, box-discipline run): **the correctness
 spine is solid; the wall bar missed for the same disease — lanes that overrun.**
 Green: the AST gate with a discriminating-ness matrix caught **4 decorative + 5
