@@ -152,6 +152,31 @@ non-wait lead calls (bar ~16). **Job B failed on the cost bar alone: lead share 
 context* (178-tool catalog + the preset's injected doctrine) is re-sent on every call, so `cacheRead`
 3.78 M on the lead vs 1.87 M across all 25 children; the largest single context entry is the lead itself.
 
+Verification note (2026-09-28, drill v29, slimmed-doctrine run): **Job A passed again — every row
+031–041 carries a pasted record** (031 refusal+admission, 032 a/b with 032c NOT EXERCISED-clean, 033 a 90 s box
+hit with a 303 KB partial, 034 the ordered steer triple, 035 per-child efforts + workflow `effortSource`,
+036 the declared-tree row, 037 pinned/inherited/negative, 038 the 8-route basis + empty-home exit 1, 039 the
+reader's tables, 040 a/b/c, 041 the TOTAL line). Quality stayed green: 29/29 type-strict rows, two sweeps
+executing (20 units/18 killed and 16/12), a cross-oracle stage killing 6/6 and reproducing 12/12 recorded
+kills on fresh trees under the *other* oracle, **0 falsifiable survivors** (R04's coverage is coarse-only,
+reported), review concrete, ordering clean, `app/` clean.
+
+**The doctrine slim measurably worked, and the bar still failed for a new reason.** Cache-inclusive lead share
+fell **62.1 % → 53.08 % (−9.0 pts, exactly where it was aimed)**; the uncached basis rose to **34.45 %** because
+the run spent **41 tool calls / 18 model requests**, with 755 s of pre-dispatch wall authoring nine drivers and
+Phase 4's six separate read-only probe delegations. Wall **1 931 s** (bar 1 500), and the fan-out produced
+**0 disagreements** again (two families agreed 4/4 — the items carried wording ambiguity, not policy
+ambiguity).
+
+Acted on the same turn: the persona core gained five rules (reuse v29's frozen fixture at
+`<archive>/roots/orchestrator-drill-v29-…/quality/` instead of authoring drivers; the guard obligations are
+**one** lane's fixed sequence, not six delegations; give measurement lanes the lead session id explicitly —
+one v29 lane read a *foreign* 178-tool session and reported 78.58 %/56.72 % for a run that was not the
+drill's; derivation items must carry **policy-level** ambiguity and any merged resolution must be fed back into
+the contract or marked advisory; never mention a hypothetical scratch path — the guard harvests it as declared
+work — and set `PYTHONDONTWRITEBYTECODE=1`, have drivers print their own evidence, and wait for a sibling's
+`stopped: complete` rather than a file's existence). Injected doctrine 3 788 → 5 064 chars.
+
 **Acted on it the same turn (the doctrine was the bloat):** the preset's always-on `suffix` was **40 125
 chars** of accumulated drill-doctrine prose; it is now a **3 788-char** core (rules only) and the full
 long-form playbook — lane detail, measured bands, every rule's failure story, rejected alternatives, the

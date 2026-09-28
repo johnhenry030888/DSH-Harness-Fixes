@@ -125,7 +125,24 @@ probes, and pasted evidence.
   **37 fixes present**, requires per-fix patch round-trips, behavioural or live proofs, `verify.sh`/`audit-secrets.sh`/
   hooks/headless-`pong` green, STATUS+STATE updates, commit+push, and a BLOCKED entry with the exact error for
   anything not landed (silent skipping is defined as a failed batch).
-- What changed this turn (2026-09-28, drill v28 — quality closed, cost bar failed, doctrine slimmed):
+- What changed this turn (2026-09-28, drill v29 — slim measured, cost still short):
+  - **Job A passed again** (031–041 all with pasted records; 032c NOT EXERCISED-clean; 040 a/b/c PASS) and
+    quality stayed green (29/29 type-strict rows; sweeps 20/18 and 16/12; a cross-oracle stage 6/6 plus
+    12/12 recorded kills reproduced under the other oracle; 0 falsifiable survivors; review concrete).
+  - **The slim bought 9 points and the bar still failed**: cache-inclusive share **62.1 % → 53.08 %**,
+    uncached **34.45 %** (worse than v28's 27.61 %) because the run used **41 tool calls / 18 model
+    requests**, 755 s of pre-dispatch authoring (nine drivers), and six separate read-only probe
+    delegations in Phase 4. Wall **1 931 s**; fan-out **0 disagreements** (wording ambiguity, not policy).
+  - **Persona core gained five rules** (5064 chars injected, from 3788): reuse v29's frozen fixture instead of
+    authoring drivers; the guard obligations are one lane's fixed sequence, not six delegations; give
+    measurement lanes the lead session id (a v29 lane read a *foreign* session and published 78.58 %);
+    derivation items need policy-level ambiguity and merged resolutions must be fed back or marked advisory;
+    never mention a hypothetical scratch path (the guard harvests it), set PYTHONDONTWRITEBYTECODE=1, have
+    drivers print their own evidence, and wait for `stopped: complete` rather than a file.
+  - **Drill v30 written** (`~/Desktop/orchestrator-drill-prompt-v30.md`): the fixture-based run — adapt
+    v29's spec/rows/gate/drivers, fold every guard obligation into one probe lane, name the lead session for
+    measurement, and design policy-level derivation items, with the share bar (both bases ≤17 %) as job A.
+- Earlier this turn (2026-09-28, drill v28 — quality closed, cost bar failed, doctrine slimmed):
   - **drill v28: Job A passed completely** (all eleven acceptance rows 031–041 with pasted records; two box
     hits; both guard directions; the workflow effort records; 038's empty-home negative) and the quality half
     closed: suite `10 passed` + rows `16/16`, two sweeps executing (13/2/1, 3/0/0), fresh-tree re-verify
