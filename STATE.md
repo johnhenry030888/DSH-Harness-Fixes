@@ -125,7 +125,31 @@ probes, and pasted evidence.
   **37 fixes present**, requires per-fix patch round-trips, behavioural or live proofs, `verify.sh`/`audit-secrets.sh`/
   hooks/headless-`pong` green, STATUS+STATE updates, commit+push, and a BLOCKED entry with the exact error for
   anything not landed (silent skipping is defined as a failed batch).
-- What changed this turn (2026-09-28, batch-8 independent verification):
+- What changed this turn (2026-09-28, drill v28 — quality closed, cost bar failed, doctrine slimmed):
+  - **drill v28: Job A passed completely** (all eleven acceptance rows 031–041 with pasted records; two box
+    hits; both guard directions; the workflow effort records; 038's empty-home negative) and the quality half
+    closed: suite `10 passed` + rows `16/16`, two sweeps executing (13/2/1, 3/0/0), fresh-tree re-verify
+    `13/13` and `3/3`, **0 falsifiable survivors** (both classifications independently confirmed), 100 %
+    type-strict across seven executions, wall ≈1 210 s, 15 non-dispatch/non-wait lead calls.
+  - **Job B failed only on the cost bar: lead share 62.1 % cache-inclusive / 27.61 % uncached** (bar ≤17 %),
+    and the cause is structural, not disciplinary — the lead's fixed per-call context (178 tools + the
+    preset's doctrine) is re-sent on every call (`cacheRead` 3.78 M on the lead vs 1.87 M across all
+    children).
+  - **Fixed that immediately by moving the doctrine out of the always-on prompt** (backup
+    `/tmp/pre-slim.yml`, and the previous revision is also in the archive): the persona `suffix` went from
+    **40 125 → 3 788 chars** (rules only) and the full playbook now lives in the on-demand skill
+    **`orchestrator-playbook`** under the project skill root
+    (`~/Documents/Projects/DSH/.dsh/skills/orchestrator-playbook/SKILL.md`), which the catalog lists. Preset
+    file 66 615 → 29 772 chars; injected doctrine −90.6 % per request. The skill's frontmatter must avoid a
+    bare `: ` inside an unquoted description (it silently dropped the skill from the catalog until fixed).
+  - **v28 frictions recorded for a proposed batch 9:** F1 the declared-tree echo at dispatch
+    (`Tree: <root>` blocks every probe beneath it; v27 F5 recurred), F3 the bash default timeout killing a
+    lane before its box fires (and the child misreporting a box hit), F4 `dsh-records.mjs --records a,b,c`
+    short-circuiting when any type is absent.
+  - **Drill v29 written** (`~/Desktop/orchestrator-drill-prompt-v29.md`): the slimmed-doctrine run — same
+    shape and bars, aimed squarely at the share number the slim should move, with F1/F3/F4 workarounds as
+    explicit instructions.
+- Earlier this turn (2026-09-28, batch-8 independent verification):
   - **Batch 8 landed (039–041) and is verified — and my verification caught a real gate failure the batch
     missed.** `check-all.sh` came back `TOTAL: 41 fixes present, 1 missing`, exit 1: the failure was **bug
     005**, whose cached live catalog still advertised 4 models upstream had removed (`glm-5.1, kimi-k2.6,

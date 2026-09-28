@@ -141,6 +141,34 @@ now exactly matching the CLI and the live source); (b) the CLI-coverage arm now 
 own live catalog and `opencode models` is a different consumer's list — the live-parity arm remains the
 authority (it is what caught this drift). Re-run: `TOTAL: 42 fixes present, 0 missing`, exit 0.
 
+Verification note (2026-09-28, drill v28, 42-fix bundle): **Job A passed completely — all eleven
+acceptance rows (031–041) carry pasted records, none NOT EXERCISED** — and the quality half closed
+decisively: suite `10 passed` + rows `16/16`, two independent sweeps executing (13/2/1 and 3/0/0), fresh-tree
+re-verification `13/13` and `3/3`, **0 falsifiable survivors** with both classifications independently
+confirmed by the reviewer, 100 % type-strict row conformance across seven executions, review non-authoring
+and concrete, `app/` clean, no lead-owned file touched, wall **≈1 210 s** (bar 1 500) and 15 non-dispatch,
+non-wait lead calls (bar ~16). **Job B failed on the cost bar alone: lead share 62.1 % cache-inclusive /
+27.61 % uncached (bar ≤17 %)** — and the drill identified the driver precisely: the lead's *fixed per-call
+context* (178-tool catalog + the preset's injected doctrine) is re-sent on every call, so `cacheRead`
+3.78 M on the lead vs 1.87 M across all 25 children; the largest single context entry is the lead itself.
+
+**Acted on it the same turn (the doctrine was the bloat):** the preset's always-on `suffix` was **40 125
+chars** of accumulated drill-doctrine prose; it is now a **3 788-char** core (rules only) and the full
+long-form playbook — lane detail, measured bands, every rule's failure story, rejected alternatives, the
+v28 additions below — lives in the on-demand skill **`orchestrator-playbook`**
+(`~/Documents/Projects/DSH/.dsh/skills/orchestrator-playbook/SKILL.md`, discovered through the project skill
+root and listed in the catalog). The preset file dropped 66 615 → 29 772 chars; the lead's injected doctrine
+drops **~90.6 %** per request, which is the only change that can move that bar.
+
+New v28 frictions recorded for a proposed **batch 9** (all with verbatim evidence): **F1** a bare
+`Tree: <root>` line in a delegation prompt declares the whole root and blocks every read-only probe beneath
+it (v27 F5 recurred) — fix: echo the extracted declared tree back in the dispatch result, or ignore a lone
+`Tree:`/cwd line; **F3** a lane's long bash call is killed by the bash tool's default timeout (~71 s) before
+its `boxSeconds` can fire, leaving no box record and a child that misreports a box hit — fix: propagate the
+box to the child's default tool timeout, or require an explicit `timeoutMs`; **F4** (a bug in batch 8's own
+deliverable) `dsh-records.mjs --records a,b,c` short-circuits when any requested type is absent and prints no
+rows for the present ones — fix: partial results per type plus a final non-zero exit.
+
 Verification of the three fixes themselves:
 - **039**: `records-selftest.sh` PASS (negative cases included); on the real v27 store it read 4 784 records
   across 2 710 zstd frames and printed `toolCount`/route/`reasoningEffort` per header; `--children` built the
