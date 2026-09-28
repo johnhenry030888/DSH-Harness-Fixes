@@ -129,6 +129,32 @@ lead now authors the driver and the lane runs it. Two residual harness-side item
 batch 8: a declared `/tmp` read scope is classified as "no read scope" (v27 F2), and there is no supported
 record-read surface for drills beyond the transcript path (v27 F3).
 
+Batch-8 note (2026-09-28, fixes 039-041) — independently re-verified, **and it caught a real gate failure**:
+`check-all.sh` first came back **`TOTAL: 41 fixes present, 1 missing`, exit 1** — the new 041 total line
+doing exactly its job. The failure was **bug 005**, not batch 8: the cached live catalog
+(`~/.dsh/storages/llm-pi-ai/catalog/opencode-go.json`, `fetchedAt` 2026-09-26) advertised **4 models upstream
+had since removed** (`glm-5.1, kimi-k2.6, qwen3.6-plus, qwen3.7-max`) while the live source now serves 29, and
+the check's CLI-parity arm flagged a served-superset as failure. Two corrections: (a) the cache was refreshed
+with bug 005's own `scripts/refresh-opencode-go-catalog.mjs` (**29 models, `fetchedAt` 2026-09-28T06:34Z**,
+now exactly matching the CLI and the live source); (b) the CLI-coverage arm now fails only on **CLI-only** ids
+(served catalog behind an independent source) and prints a **NOTE** for served-only ids, since DSH serves its
+own live catalog and `opencode models` is a different consumer's list — the live-parity arm remains the
+authority (it is what caught this drift). Re-run: `TOTAL: 42 fixes present, 0 missing`, exit 0.
+
+Verification of the three fixes themselves:
+- **039**: `records-selftest.sh` PASS (negative cases included); on the real v27 store it read 4 784 records
+  across 2 710 zstd frames and printed `toolCount`/route/`reasoningEffort` per header; `--children` built the
+  **23-child table** (effort, records, wall) that v26/v27 could not; `--usage` computed the per-agent totals
+  **and the lead's share that v27 declared unmeasurable — 35.67 % cache-inclusive / 25.28 % uncached** (so
+  v27's share bar would have been MISSED on both bases, now on record).
+- **040**: module probe `GUARD-READER-SCOPE-CHECK PASS`, and the live probe PASS — a read-only delegation
+  declaring `/tmp/dsh040-live/readers` was **admitted** while a writer was live, the overlapping declaration
+  was **refused naming the declared pair** with `scopeBasis: declared`, the same declaration was admitted
+  after settlement, and the durable `subagent/inspection-scope` records were read back through the 039 reader.
+  No-regression: `guard-scope-check.mjs` (031) and `guard-pair-check.mjs` (032, including the v26 A3 case)
+  both still PASS.
+- **041**: `check.sh` PRESENT; the `TOTAL:` line is now the authoritative count in this ledger and in drills.
+
 **All eight drill-opened harness items are now closed** (031–038). The only item from the v25/v26 lists that
 is deliberately *not* a fix is the read-only lane's wiped `/tmp`: it is the sandbox design (a read-only
 lane's scratch is per-invocation), now documented rather than patched.

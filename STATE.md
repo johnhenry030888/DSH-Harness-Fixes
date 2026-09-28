@@ -125,7 +125,27 @@ probes, and pasted evidence.
   **37 fixes present**, requires per-fix patch round-trips, behavioural or live proofs, `verify.sh`/`audit-secrets.sh`/
   hooks/headless-`pong` green, STATUS+STATE updates, commit+push, and a BLOCKED entry with the exact error for
   anything not landed (silent skipping is defined as a failed batch).
-- Batch-8 fixes prompt written (2026-09-28): `~/Desktop/opencode-harness-fixes-prompt-8.md` — the last three
+- What changed this turn (2026-09-28, batch-8 independent verification):
+  - **Batch 8 landed (039–041) and is verified — and my verification caught a real gate failure the batch
+    missed.** `check-all.sh` came back `TOTAL: 41 fixes present, 1 missing`, exit 1: the failure was **bug
+    005**, whose cached live catalog still advertised 4 models upstream had removed (`glm-5.1, kimi-k2.6,
+    qwen3.6-plus, qwen3.7-max`) and whose CLI-parity arm treated a served-superset as failure. Fixed by
+    refreshing the cache with 005's own script (**29 models**, `fetchedAt` 2026-09-28T06:34Z, matching the live
+    source and the CLI) and by making that arm fail only on **CLI-only** ids (served-only ⇒ NOTE), leaving the
+    live-parity arm as the authority. Now `TOTAL: 42 fixes present, 0 missing`, exit 0.
+  - **039 verified**: selftest PASS; the real v27 store read (4 784 records / 2 710 frames) with per-header
+    `toolCount`/route/`reasoningEffort`; `--children` produced the **23-child table**; `--usage` produced the
+    per-agent totals and the lead share v27 could not measure (**35.67 % cache-inclusive / 25.28 % uncached**).
+  - **040 verified**: module probe PASS; live probe PASS (declared `/tmp` scratch admitted while a writer was
+    live, overlapping declaration refused naming the declared pair with `scopeBasis: declared`, admitted after
+    settlement, durable records read back via 039); 031/032 probes still PASS (no regression).
+  - **041 verified**: the `TOTAL:` line is now the authoritative count (it is what exposed the 005 drift).
+  - **Doctrine updated (backup `agent.cordis.yml.pre-v31-20260928`):** read records with the supported
+    `dsh-records.mjs` (one bash call, `--children --usage`, no hand-rolled parsing — wrong twice in v20/v26)
+    and a declared **scratch** scope now counts as a real declaration (fix 040).
+  - **Drill v28 brief updated**: the record/usage evidence now comes from `dsh-records.mjs`, and the expected
+    gate line is `TOTAL: 42 fixes present, 0 missing`.
+- Earlier this turn (2026-09-28, batch-8 fixes prompt written): `~/Desktop/opencode-harness-fixes-prompt-8.md` — the last three
   items, each with drill citations and verified seams, gate raised to **42 fixes**:
   **039 — a supported offline records reader** (`bugs/039-…/scripts/dsh-records.mjs`, repo-side like bug 020,
   no bundle patch, **no new model-facing tool**): locates a session by globbing

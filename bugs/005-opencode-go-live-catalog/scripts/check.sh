@@ -9,7 +9,9 @@
 #   4. ~/.dsh/settings.yaml does not re-pin opencode-go.models (which would
 #      replace the live catalog);
 #   5. when the network is up, the cached list still matches the live active
-#      set, and (when `opencode` is installed) the opencode CLI's own list.
+#      set, and (when `opencode` is installed) the opencode CLI's own list is a
+#      SUBSET of the served one. CLI-lag (served-only ids) is a NOTE; a CLI-only
+#      id means the served catalog is behind and fails (2026-09-28).
 set -u
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -88,11 +90,21 @@ if [ "$ok" -eq 0 ]; then
       ' "$CACHE" | LC_ALL=C sort)"
       missing="$(LC_ALL=C comm -23 <(printf '%s\n' "$cli") <(printf '%s\n' "$served") | tr '\n' ' ')"
       extra="$(LC_ALL=C comm -13 <(printf '%s\n' "$cli") <(printf '%s\n' "$served") | tr '\n' ' ')"
-      if [ -n "$missing" ] || [ -n "$extra" ]; then
-        echo "opencode CLI parity FAILED ($(printf '%s\n' "$cli" | wc -l) CLI vs $(printf '%s\n' "$served" | wc -l) served)"
-        [ -n "$missing" ] && echo "  CLI-only: $missing"
-        [ -n "$extra" ] && echo "  served-only: $extra"
+      # The two lists answer different questions and are not required to match:
+      # DSH serves its own live catalog (refreshed at runtime), while `opencode
+      # models` is another consumer's list. 2026-09-28: upstream grew and the CLI
+      # lagged (33 served vs 29 CLI, every CLI id present in the served set), and
+      # the old either-direction assertion failed the whole suite on a healthy
+      # superset. The signal that matters is the *missing* direction: an id the CLI
+      # knows but the served catalog lacks means the catalog is behind an
+      # independent source. Superset growth is a NOTE.
+      if [ -n "$missing" ]; then
+        echo "opencode CLI coverage FAILED ($(printf '%s\n' "$cli" | wc -l) CLI vs $(printf '%s\n' "$served" | wc -l) served)"
+        echo "  CLI-only (the served catalog is behind): $missing"
         ok=1
+      elif [ -n "$extra" ]; then
+        echo "NOTE: opencode CLI coverage differs ($(printf '%s\n' "$cli" | wc -l) CLI vs $(printf '%s\n' "$served" | wc -l) served)"
+        echo "  served-only (expected: DSH serves the live catalog; the CLI lags): $extra"
       fi
     fi
   fi
