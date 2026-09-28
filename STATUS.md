@@ -161,6 +161,28 @@ executing (20 units/18 killed and 16/12), a cross-oracle stage killing 6/6 and r
 kills on fresh trees under the *other* oracle, **0 falsifiable survivors** (R04's coverage is coarse-only,
 reported), review concrete, ordering clean, `app/` clean.
 
+Verification note (2026-09-28, drill v30, fixture run): **the share bar is not reachable by doctrine — the
+measurement is now conclusive.** Wall **~1 150 s** and lead calls **16** both PASS; the quality bars held
+(suite/oracle `47 pass`, two independent sweeps 17/17 killed with fresh-tree re-verification, 100 %
+type-strict conformance, a gate whose self-test catches 7/7 corruptions, review concrete, `app/` clean); and
+Job A accepted 031–036, 038–041 with pasted records. Three things remain open, each with a number:
+
+1. **Share: 46.95 % cache-inclusive / 45.52 % uncached** (bar ≤17 %) — the *third* consecutive miss
+   (v28 62.1/27.6, v29 53.1/34.5, v30 47.0/45.5). The slim improved the cache-inclusive basis as designed but
+   the uncached basis moved **up**, because the lead's absolute input is fixed while the children's shrinks.
+   **Measured cause (this turn): the mounted catalog is 178 tools, of which 143 are MCP schemas costing
+   81 973 bytes ≈ 20 493 tokens of tool schema alone — 62 % of the catalog — re-sent on every one of the
+   lead's calls and on every child's first call.** Pruning that is a host-profile decision (the MCP rows live
+   in `~/.dsh/profiles/web/cordis.patch.yml`), not a preset or doctrine change; the honest alternative is to
+   re-baseline the bar onto absolute lead tokens, calls and wall.
+2. **037 and 035's workflow half were NOT EXERCISED** because the run never needed a `workflow` stage — an
+   acceptance gap the brief caused, now a doctrine rule ("run a tiny stage for it even when the pinned path
+   would do").
+3. **The merge lane hit a 120 s box, returned nothing, and its counts went unreconciled** (`not-comparable`)
+   — rule added: merge box ≥240 s, accounting window ≥ box, the merge must return an artifact. One
+   falsifiable survivor was also found (a dropped `ValueError` rejection) and repaired with three added rows
+   R45–R47, disclosed as a post-freeze repair.
+
 **The doctrine slim measurably worked, and the bar still failed for a new reason.** Cache-inclusive lead share
 fell **62.1 % → 53.08 % (−9.0 pts, exactly where it was aimed)**; the uncached basis rose to **34.45 %** because
 the run spent **41 tool calls / 18 model requests**, with 755 s of pre-dispatch wall authoring nine drivers and

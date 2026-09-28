@@ -125,7 +125,26 @@ probes, and pasted evidence.
   **37 fixes present**, requires per-fix patch round-trips, behavioural or live proofs, `verify.sh`/`audit-secrets.sh`/
   hooks/headless-`pong` green, STATUS+STATE updates, commit+push, and a BLOCKED entry with the exact error for
   anything not landed (silent skipping is defined as a failed batch).
-- What changed this turn (2026-09-28, drill v29 — slim measured, cost still short):
+- What changed this turn (2026-09-28, drill v30 — the share bar is unreachable by doctrine):
+  - **Wall ~1 150 s and 16 lead calls both PASS**; quality held (47/47 oracle, two sweeps 17/17 with
+    fresh-tree re-verification, 100 % type-strict, gate self-test 7/7, review concrete, `app/` clean); Job A
+    accepted 031–036 and 038–041 with pasted records. Open: **share 46.95 % incl / 45.52 % uncached** (third
+    straight miss), **037 and 035's workflow half NOT EXERCISED** (no workflow stage ran), and the **merge
+    lane boxed out at 120 s returning nothing** (counts unreconciled), plus one falsifiable survivor found and
+    repaired with rows R45–R47.
+  - **Measured the actual driver**: the lead's catalog is 178 tools of which **143 are MCP schemas costing
+    81 973 bytes ≈ 20 493 tokens (62 % of the catalog), re-sent on every lead call and every child's first
+    call**. Pruning is a host-profile decision (`~/.dsh/profiles/web/cordis.patch.yml`), so the ledger now
+    records both options — prune the orchestrator's catalog, or re-baseline the bar onto absolute lead
+    tokens/calls/wall.
+  - **Persona core updated** (5 968 chars injected): report lead calls, wall and absolute lead tokens instead
+    of chasing a 17 % fraction while that catalog is mounted; evidence every claimed fix (run a tiny workflow
+    stage when an acceptance row needs one — NOT EXERCISED is a gap); and never let the merge be the lane
+    that disappears (box ≥240 s, accounting window ≥ box, artifact required).
+  - **Drill v31 written** (`~/Desktop/orchestrator-drill-prompt-v31.md`): the re-baselined run — absolute cost
+    bars plus a mandatory tiny workflow stage, a 240 s merge box with a matching accounting window, and an
+    explicit option to measure the same task with the MCP tools denied if the operator chooses pruning.
+- Earlier this turn (2026-09-28, drill v29 — slim measured, cost still short):
   - **Job A passed again** (031–041 all with pasted records; 032c NOT EXERCISED-clean; 040 a/b/c PASS) and
     quality stayed green (29/29 type-strict rows; sweeps 20/18 and 16/12; a cross-oracle stage 6/6 plus
     12/12 recorded kills reproduced under the other oracle; 0 falsifiable survivors; review concrete).
